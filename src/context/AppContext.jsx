@@ -3,9 +3,9 @@ import { INITIAL_MOCK_BOOKINGS, WASHING_CENTERS } from '../data/mockData';
 
 const AppContext = createContext();
 
-const BOOKINGS_STORAGE_KEY = 'washslot_blr_bookings_v5';
-const USER_STORAGE_KEY = 'washslot_blr_current_user_v5';
-const CENTERS_STORAGE_KEY = 'washslot_blr_centers_v5';
+const BOOKINGS_STORAGE_KEY = 'washslot_blr_bookings_v6';
+const USER_STORAGE_KEY = 'washslot_blr_current_user_v6';
+const CENTERS_STORAGE_KEY = 'washslot_blr_centers_v6';
 
 // Initialize default centers with coordinates, status, capacity, and reviews
 const DEFAULT_CENTERS = WASHING_CENTERS.map((c) => ({
@@ -15,6 +15,7 @@ const DEFAULT_CENTERS = WASHING_CENTERS.map((c) => ({
   maxCapacityPerSlot: c.maxCapacityPerSlot || 2,
   latitude: c.latitude || 12.9716,
   longitude: c.longitude || 77.5946,
+  adminContactNumber: c.adminContactNumber || '+91 98860 12345',
   reviews: c.reviews || []
 }));
 
@@ -135,6 +136,23 @@ export function AppProvider({ children }) {
   };
 
   /**
+   * Lazy Customer Registration & Instant Session Creation (Requirement #1)
+   * Instantly creates and saves customer profile during checkout without prior login
+   */
+  const registerCustomer = (customerData) => {
+    const name = customerData.name?.trim() || 'Valued Customer';
+    const phone = customerData.phone?.trim() || '+91 98450 00000';
+    const newCustomer = {
+      role: 'customer',
+      name,
+      phone,
+      vendorCenterId: null
+    };
+    setCurrentUser(newCustomer);
+    return newCustomer;
+  };
+
+  /**
    * Super Admin Function: addCenter(newCenterData)
    */
   const addCenter = (newCenterData) => {
@@ -156,30 +174,6 @@ export function AppProvider({ children }) {
         description: 'High-pressure touchless snow foam wash, underbody rinse, and microfiber hand-drying.',
         includes: ['Touchless snow foam', 'High-pressure underbody rinse', 'Tire shine coating', 'Streak-free window wipe']
       },
-      {
-        id: `srv-${slug}-2`,
-        title: 'Deep Interior Vacuum & Sanitization',
-        vehicleType: 'Car',
-        category: 'foam',
-        price: 699,
-        originalPrice: 899,
-        duration: '50 mins',
-        popular: false,
-        description: 'Complete cabin deep vacuum, dashboard UV polish, carpet shampooing, and AC vent bacterial steam sanitization.',
-        includes: ['Carpet & seat vacuuming', 'Boot deep vacuum', 'AC vent steam blast', 'Dashboard protectant']
-      },
-      {
-        id: `srv-${slug}-3`,
-        title: 'Superbike / Bike Detailing & Chain Care',
-        vehicleType: 'Bike',
-        category: 'bike',
-        price: 349,
-        originalPrice: 450,
-        duration: '35 mins',
-        popular: false,
-        description: 'High-pressure degreasing of engine bay and sprocket, Motul chain lube & matte/gloss polish.',
-        includes: ['Engine bay degreasing', 'Chain cleaner & Motul lube', 'Silencer shine', 'Silicone glaze']
-      }
     ];
 
     const defaultSlots = [
@@ -211,6 +205,7 @@ export function AppProvider({ children }) {
       image: newCenterData.image || 'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?auto=format&fit=crop&w=1200&q=80',
       coverImage: newCenterData.coverImage || newCenterData.image || 'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?auto=format&fit=crop&w=1600&q=80',
       phone: newCenterData.phone || '+91 98450 00000',
+      adminContactNumber: newCenterData.adminContactNumber?.trim() || newCenterData.phone?.trim() || '+91 98860 00000',
       timings: newCenterData.timings || '08:00 AM - 08:30 PM',
       distance: 'Bengaluru Bay',
       slotsAvailableToday: 14,
@@ -462,6 +457,7 @@ export function AppProvider({ children }) {
         setCurrentUser,
         loginUser,
         logoutUser,
+        registerCustomer,
         centers,
         addCenter,
         toggleCenterStatus,

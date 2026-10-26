@@ -124,7 +124,7 @@ export default function Navbar() {
 
           {/* Center Navigation Links (Clean, Uncluttered Desktop) */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            <Link
+            {/* <Link
               to="/"
               className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition ${
                 location.pathname === '/' 
@@ -133,10 +133,10 @@ export default function Navbar() {
               }`}
             >
               Explore Centers
-            </Link>
+            </Link> */}
 
             {/* My Bookings link */}
-            <Link
+            {/* <Link
               to="/my-bookings"
               className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
                 location.pathname === '/my-bookings'
@@ -151,10 +151,10 @@ export default function Navbar() {
                   {customerActiveCount}
                 </span>
               )}
-            </Link>
+            </Link> */}
 
             {/* Vendor Orders link */}
-            <Link
+            {/* <Link
               to="/vendor/orders"
               className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
                 location.pathname.startsWith('/vendor')
@@ -169,10 +169,10 @@ export default function Navbar() {
                   {vendorPendingCount}
                 </span>
               )}
-            </Link>
+            </Link> */}
 
             {/* Super Admin Dashboard Link */}
-            <Link
+            {/* <Link
               to="/admin/dashboard"
               className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
                 location.pathname.startsWith('/admin')
@@ -182,7 +182,7 @@ export default function Navbar() {
             >
               <Crown className="w-4 h-4 text-purple-600" />
               <span>Super Admin</span>
-            </Link>
+            </Link> */}
           </nav>
 
           {/* Right Action: Clean Single Profile Dropdown Trigger */}
@@ -294,9 +294,9 @@ export default function Navbar() {
                     </div>
 
                     {/* Persona Switcher Section */}
-                    <div className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                    {/* <div className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
                       Switch Active Persona
-                    </div>
+                    </div> */}
 
                     <div className="space-y-0.5">
                       <button

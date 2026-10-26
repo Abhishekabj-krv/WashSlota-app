@@ -49,6 +49,7 @@ export default function AddCenterModal({ isOpen, onClose, onCenterAdded }) {
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
   const [phone, setPhone] = useState('+91 98450 ');
+  const [adminContactNumber, setAdminContactNumber] = useState('+91 98860 ');
   const [timings, setTimings] = useState('08:00 AM - 08:30 PM');
   const [vendorPin, setVendorPin] = useState('1234');
   const [startingPrice, setStartingPrice] = useState(249);
@@ -87,6 +88,7 @@ export default function AddCenterModal({ isOpen, onClose, onCenterAdded }) {
       address: address.trim(),
       landmark: landmark.trim() || 'Near Main Junction',
       phone: phone.trim() || '+91 98450 00000',
+      adminContactNumber: adminContactNumber.trim() || phone.trim() || '+91 98860 00000',
       timings: timings.trim() || '08:00 AM - 08:30 PM',
       vendorPin: vendorPin.trim() || '1234',
       startingPrice: Number(startingPrice) || 249,
@@ -301,10 +303,10 @@ export default function AddCenterModal({ isOpen, onClose, onCenterAdded }) {
               />
             </div>
 
-            {/* Phone */}
+            {/* Customer Helpline Phone */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Center Phone Number
+                Customer Support Helpline
               </label>
               <input
                 type="text"
@@ -313,6 +315,27 @@ export default function AddCenterModal({ isOpen, onClose, onCenterAdded }) {
                 placeholder="+91 98450 12345"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-purple-600 text-sm text-slate-900"
               />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                Public hotline displayed on customer cards
+              </span>
+            </div>
+
+            {/* Admin / Operations Contact (Requirement #2) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Admin / Operations Contact <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={adminContactNumber}
+                onChange={(e) => setAdminContactNumber(e.target.value)}
+                placeholder="+91 98860 12345"
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border border-purple-200 bg-purple-50/30 focus:bg-white focus:outline-hidden focus:border-purple-600 text-sm font-semibold text-slate-900"
+              />
+              <span className="text-[10px] text-purple-700 font-medium mt-0.5 block">
+                Direct mobile of owner/manager for founder coordination
+              </span>
             </div>
 
             {/* Operating Hours */}

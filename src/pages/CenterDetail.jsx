@@ -12,21 +12,34 @@ import {
   Car, 
   Bike, 
   Sparkles, 
-  AlertCircle,
-  Check,
-  ChevronRight,
-  User,
-  Lock,
-  MessageSquare,
-  CheckCircle2,
-  Navigation
+  AlertCircle, 
+  Check, 
+  ChevronRight, 
+  User, 
+  Lock, 
+  MessageSquare, 
+  CheckCircle2, 
+  Navigation,
+  X,
+  Crown,
+  KeyRound,
+  ExternalLink,
+  ShieldAlert,
+  Zap
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function CenterDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { centers, bookings, currentUser, addBooking, addCenterReview } = useApp();
+  const { 
+    centers, 
+    bookings, 
+    currentUser, 
+    addBooking, 
+    addCenterReview, 
+    registerCustomer 
+  } = useApp();
 
   // Find center by id from dynamic centers list
   const center = useMemo(() => {
@@ -44,16 +57,26 @@ export default function CenterDetail() {
 
   // Customer vehicle & contact info (pre-fill from currentUser if available)
   const [customerName, setCustomerName] = useState(
-    currentUser?.name || 'Rahul Sharma'
+    currentUser?.role === 'customer' ? (currentUser.name || '') : ''
   );
   const [customerPhone, setCustomerPhone] = useState(
-    currentUser?.phone || '+91 98450 78219'
+    currentUser?.role === 'customer' ? (currentUser.phone || '') : ''
   );
   const [vehicleNumber, setVehicleNumber] = useState('KA 01 MQ 7842');
   const [vehicleModel, setVehicleModel] = useState('Hyundai Creta 1.5');
   const [formError, setFormError] = useState('');
 
-  // Verified review form state (Requirement #3)
+  // Lazy Customer Checkout Modal state (Requirement #1)
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [lazyName, setLazyName] = useState(customerName || 'Rahul Sharma');
+  const [lazyPhone, setLazyPhone] = useState(customerPhone || '+91 98450 78219');
+  const [otpStep, setOtpStep] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [isBookingSubmitting, setIsBookingSubmitting] = useState(false);
+
+  // Verified review form state
   const [userRating, setUserRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -81,7 +104,7 @@ export default function CenterDetail() {
     { label: 'Friday', subText: 'Oct 24' }
   ];
 
-  // Requirement #3: Check if logged-in customer has a completed booking at this center
+  // Check if logged-in customer has a completed booking at this center (Verified Review Guardrail)
   const hasCompletedBooking = useMemo(() => {
     if (!currentUser || currentUser.role !== 'customer') return false;
     return bookings.some((b) => {
@@ -110,15 +133,41 @@ export default function CenterDetail() {
     setTimeout(() => setReviewSubmittedNotice(''), 3000);
   };
 
+  // Direct Booking Execution helper
+  const executeBooking = (finalName, finalPhone) => {
+    const bookingResult = addBooking({
+      centerId: center.id,
+      centerName: center.name,
+      locality: center.locality,
+      customerName: finalName.trim(),
+      customerPhone: finalPhone.trim(),
+      vehicleNumber: vehicleNumber.toUpperCase().trim(),
+      vehicleModel: vehicleModel.trim() || 'Standard Vehicle',
+      vehicleType: selectedService.vehicleType,
+      serviceName: selectedService.title,
+      price: selectedService.price,
+      bookingDate: selectedDate,
+      slotTime: selectedSlot,
+      status: 'pending'
+    });
+
+    if (bookingResult && bookingResult.error) {
+      setFormError(bookingResult.error);
+      return false;
+    }
+
+    setIsCheckoutModalOpen(false);
+    navigate('/my-bookings');
+    return true;
+  };
+
+  // Main Booking Button Trigger (Handles Lazy Registration Flow)
   const handleBookSlot = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     if (!vehicleNumber.trim()) {
       setFormError('Please enter your vehicle registration number (e.g. KA 01 AB 1234)');
-      return;
-    }
-    if (!customerName.trim()) {
-      setFormError('Please enter your name');
+      window.scrollTo({ top: 400, behavior: 'smooth' });
       return;
     }
     if (!selectedSlot) {
@@ -143,150 +192,210 @@ export default function CenterDetail() {
 
     setFormError('');
 
-    // Create the booking with status: 'pending'
-    const bookingResult = addBooking({
-      centerId: center.id,
-      centerName: center.name,
-      locality: center.locality,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      vehicleNumber: vehicleNumber.toUpperCase().trim(),
-      vehicleModel: vehicleModel.trim(),
-      vehicleType: selectedService.vehicleType,
-      serviceName: selectedService.title,
-      price: selectedService.price,
-      bookingDate: selectedDate,
-      slotTime: selectedSlot,
-      status: 'pending'
-    });
-
-    if (bookingResult && bookingResult.error) {
-      setFormError(bookingResult.error);
+    // Requirement #1: If customer is NOT logged in, open the frictionless Lazy Checkout Modal!
+    if (!currentUser || currentUser.role !== 'customer') {
+      const demoOtp = Math.floor(1000 + Math.random() * 9000).toString();
+      setGeneratedOtp(demoOtp);
+      setLazyName(customerName );
+      setLazyPhone(customerPhone);
+      setOtpStep(false);
+      setOtpError('');
+      setIsCheckoutModalOpen(true);
       return;
     }
 
-    // Automatically redirect customer to /my-bookings
-    navigate('/my-bookings');
+    // Already logged in as customer: proceed directly
+    executeBooking(currentUser.name, currentUser.phone || customerPhone );
+  };
+
+  // Send simulated SMS OTP in modal
+  const handleSendLazyOtp = (e) => {
+    e.preventDefault();
+    if (!lazyName.trim()) {
+      setOtpError('Please enter your full name');
+      return;
+    }
+    if (!lazyPhone.trim() || lazyPhone.length < 8) {
+      setOtpError('Please enter a valid mobile number');
+      return;
+    }
+
+    setOtpError('');
+    const demoOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    setGeneratedOtp(demoOtp);
+    setOtpStep(true);
+  };
+
+  // Confirm OTP & Complete Lazy Registration + Booking
+  const handleVerifyLazyOtp = (e) => {
+    e.preventDefault();
+    if (enteredOtp.trim() !== generatedOtp && enteredOtp.trim() !== '1234') {
+      setOtpError(`Invalid code. Please enter the demo SMS code: ${generatedOtp}`);
+      return;
+    }
+
+    setOtpError('');
+    setIsBookingSubmitting(true);
+
+    // Save profile instantly to context & localStorage
+    registerCustomer({
+      name: lazyName.trim(),
+      phone: lazyPhone.trim()
+    });
+
+    setTimeout(() => {
+      setIsBookingSubmitting(false);
+      executeBooking(lazyName, lazyPhone);
+    }, 600);
+  };
+
+  // Instant 1-click verify shortcut for maximum UX speed
+  const handleInstantAutoVerify = () => {
+    setEnteredOtp(generatedOtp);
+    setIsBookingSubmitting(true);
+    registerCustomer({
+      name: lazyName.trim(),
+      phone: lazyPhone.trim() 
+    });
+    setTimeout(() => {
+      setIsBookingSubmitting(false);
+      executeBooking(lazyName, lazyPhone);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Breadcrumb & Back Navigation */}
-        <div className="mb-6 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 pb-28 lg:pb-12">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Back Link & Header Breadcrumb */}
+        <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-600 hover:text-brand-600 transition"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-600 hover:text-brand-600 transition p-1.5 -ml-1.5 rounded-xl hover:bg-white"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to All Centers</span>
+            <span>Back to Bengaluru Studios</span>
           </Link>
 
-          <span className="text-xs font-semibold text-slate-400">
-            Bengaluru / {center.locality} / <span className="text-slate-700">{center.name}</span>
+          <span className="text-xs font-semibold text-slate-400 hidden sm:inline">
+            Hyperlocal Studio Profile
           </span>
         </div>
 
-        {/* Center Banner Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs mb-8">
-          <div className="relative h-60 sm:h-80 w-full bg-slate-900">
-            <img
-              src={center.coverImage || center.image}
-              alt={center.name}
-              className="w-full h-full object-cover opacity-85"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
-
-            {/* Banner Overlay Info */}
-            <div className="absolute bottom-6 left-6 right-6 text-white flex flex-col md:flex-row md:items-end justify-between gap-4">
+        {/* Founder / Super Admin Operations View (Requirement #2) */}
+        {currentUser?.role === 'superadmin' && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 border border-purple-500/40 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-yellow-300 shrink-0">
+                <Crown className="w-6 h-6" />
+              </div>
               <div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="bg-brand-500 text-white text-xs font-bold px-2.5 py-0.5 rounded-full">
-                    {center.locality}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/30 text-purple-200 px-2 py-0.5 rounded-md border border-purple-400/30">
+                    Founder Ops Control
                   </span>
-                  <div className="bg-amber-400 text-slate-950 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-current" />
-                    <span>{center.rating}</span>
-                    <span className="text-slate-800 font-medium">({center.reviewsCount || (center.reviews?.length || 0)} reviews)</span>
-                  </div>
+                  <span className="font-mono text-xs font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">
+                    PIN: {center.vendorPin || '1234'}
+                  </span>
                 </div>
-
-                <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
-                  {center.name}
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-                  {center.tagline}
-                </p>
-              </div>
-
-              <div className="text-xs sm:text-sm bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/15 space-y-1 shrink-0">
-                <div className="flex items-center gap-2 text-slate-200">
-                  <Clock className="w-4 h-4 text-cyan-400" />
-                  <span>{center.timings}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-200">
-                  <Phone className="w-4 h-4 text-emerald-400" />
-                  <span>{center.phone}</span>
+                <div className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>Owner Contact: <strong className="text-white font-mono">{center.adminContactNumber || center.phone}</strong></span>
+                  <span>•</span>
+                  <span>Customer Support: <strong className="text-slate-300 font-mono">{center.phone}</strong></span>
                 </div>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <a
+                href={`tel:${center.adminContactNumber || center.phone}`}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Call Owner</span>
+              </a>
+              <Link
+                to="/admin/dashboard"
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+              >
+                Admin Directory
+              </Link>
             </div>
           </div>
+        )}
 
-          {/* Amenities & Address bar */}
-          <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-600">
-              <MapPin className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-slate-800">{center.address}</span>
-                <span className="text-slate-500 block text-xs">Landmark: {center.landmark}</span>
+        {/* Hero Studio Banner */}
+        <div className="relative rounded-3xl overflow-hidden bg-slate-900 text-white shadow-xl min-h-[220px] sm:min-h-[280px] flex flex-col justify-end p-6 sm:p-8">
+          <img
+            src={center.coverImage || center.image}
+            alt={center.name}
+            className="absolute inset-0 w-full h-full object-cover opacity-35"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+
+          <div className="relative z-10 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-500 text-white">
+                Verified Studio
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/20 text-white backdrop-blur-md">
+                {center.locality}, Bengaluru
+              </span>
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950">
+                <Star className="w-3 h-3 fill-slate-950" />
+                <span>{center.rating} ({center.reviewsCount} reviews)</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 bg-purple-50 border border-purple-200 text-purple-900 rounded-lg">
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                <span>Max {center.maxCapacityPerSlot || 2} Bays / Timeslot</span>
-              </span>
+            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+              {center.name}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-normal">
+              {center.tagline}
+            </p>
 
-              {center.facilities?.map((fac, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg shadow-2xs"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{fac}</span>
-                </span>
-              ))}
+            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                <span className="truncate max-w-xs">{center.address}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                <span>{center.timings}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                <span>{center.phone}</span>
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Main Grid: Left Column (Services, Slot Picker, Details, Reviews) & Right Column (Sticky Summary) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Left Column (8 cols) */}
-          <div className="lg:col-span-8 space-y-8">
-            
-            {/* Step 1: Select Service */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        {/* Main 2-Column Booking Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+
+          {/* Left Column (8 cols): Service, Slot, Vehicle Info */}
+          <div className="lg:col-span-8 space-y-6">
+
+            {/* Step 1: Services Selection */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
                 <div>
                   <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">
                     Step 1 of 3
                   </span>
                   <h2 className="text-xl font-black text-slate-900 mt-0.5">
-                    Select Your Wash Service
+                    Select Washing Service
                   </h2>
                 </div>
 
-                {/* Filter tabs */}
-                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 self-start sm:self-auto text-xs font-bold">
+                {/* Service Filter Tabs */}
+                <div className="flex p-1 bg-slate-100 rounded-xl text-xs font-bold self-start sm:self-auto">
                   <button
                     type="button"
                     onClick={() => setServiceFilter('all')}
                     className={`px-3 py-1.5 rounded-lg transition ${
-                      serviceFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      serviceFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                     }`}
                   >
                     All Services
@@ -295,76 +404,78 @@ export default function CenterDetail() {
                     type="button"
                     onClick={() => setServiceFilter('car')}
                     className={`px-3 py-1.5 rounded-lg transition ${
-                      serviceFilter === 'car' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      serviceFilter === 'car' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                     }`}
                   >
-                    Car Wash
+                    Cars
                   </button>
                   <button
                     type="button"
                     onClick={() => setServiceFilter('bike')}
                     className={`px-3 py-1.5 rounded-lg transition ${
-                      serviceFilter === 'bike' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      serviceFilter === 'bike' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
                     }`}
                   >
-                    Bike Wash
+                    Bikes
                   </button>
                 </div>
               </div>
 
               {/* Service Cards List */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {visibleServices.map((service) => {
                   const isSelected = selectedServiceId === service.id;
+
                   return (
                     <div
                       key={service.id}
                       onClick={() => setSelectedServiceId(service.id)}
-                      className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative ${
+                      className={`p-4 sm:p-5 rounded-2xl border-2 transition-all cursor-pointer relative ${
                         isSelected
-                          ? 'border-brand-600 bg-brand-50/40 shadow-sm'
+                          ? 'border-brand-600 bg-brand-50/40 shadow-xs'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                                service.vehicleType === 'Bike'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                            >
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                              service.vehicleType === 'Bike'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-sky-100 text-sky-800'
+                            }`}>
                               {service.vehicleType}
                             </span>
-                            {service.popular && (
-                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">
-                                Most Popular
-                              </span>
-                            )}
                             <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
+                              <Clock className="w-3 h-3 text-slate-400" />
                               {service.duration}
                             </span>
+                            {/* {service.popular && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-100 text-amber-800">
+                                Most Popular
+                              </span>
+                            )} */}
                           </div>
 
-                          <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                          <h3 className="font-bold text-slate-900 text-base sm:text-lg">
                             {service.title}
                           </h3>
-                          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                          <p className="text-xs text-slate-600 leading-relaxed">
                             {service.description}
                           </p>
 
-                          {/* Checklist */}
-                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {service.includes?.map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-1.5 text-xs text-slate-600">
-                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span>{item}</span>
-                              </div>
-                            ))}
-                          </div>
+                          {/* {service.includes && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {service.includes.map((inc, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md"
+                                >
+                                  ✓ {inc}
+                                </span>
+                              ))}
+                            </div>
+                          )} */}
                         </div>
 
                         {/* Price & Selection Indicator */}
@@ -399,27 +510,27 @@ export default function CenterDetail() {
               </div>
             </div>
 
-            {/* Step 2: DYNAMIC SLOT CAPACITY MANAGEMENT (Requirement #4) */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-              <div className="mb-6">
+            {/* Step 2: Hydraulic Bay Slot Capacity Management */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs">
+              <div className="mb-5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">
                     Step 2 of 3
                   </span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                    Max {center.maxCapacityPerSlot || 2} vehicles per slot
-                  </span>
+                  {/* <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    Max {center.maxCapacityPerSlot || 2} bays/slot
+                  </span> */}
                 </div>
                 <h2 className="text-xl font-black text-slate-900 mt-0.5">
                   Pick Guaranteed Bay Time Slot
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Real-time hydraulic bay allocation. Overcrowded slots are locked automatically.
-                </p>
+                {/* <p className="text-xs text-slate-500 mt-1">
+                  Active bookings strictly consume bay capacity. Full slots are automatically locked.
+                </p> */}
               </div>
 
               {/* Date Selection Tabs */}
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-6">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-5">
                 {dateOptions.map((opt) => {
                   const isDateActive = selectedDate === opt.label;
                   return (
@@ -429,7 +540,7 @@ export default function CenterDetail() {
                       onClick={() => setSelectedDate(opt.label)}
                       className={`p-3 rounded-2xl border text-center transition ${
                         isDateActive
-                          ? 'border-brand-600 bg-brand-50/50 shadow-2xs'
+                          ? 'border-brand-600 bg-brand-50/60 shadow-2xs'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
@@ -444,7 +555,7 @@ export default function CenterDetail() {
                 })}
               </div>
 
-              {/* Dynamic Time Slots Grid with Capacity Check (Requirement #4) */}
+              {/* Dynamic Time Slots Grid with Capacity Check */}
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                   Bay Availability for {selectedDate}
@@ -454,7 +565,7 @@ export default function CenterDetail() {
                   {center.timeSlots.map((slot, idx) => {
                     const maxCapacity = center.maxCapacityPerSlot || 2;
                     
-                    // Dynamic capacity check: active bookings ('pending' | 'accepted') lock slot capacity
+                    // Count active bookings ('pending' | 'accepted')
                     const activeCount = bookings.filter(
                       (b) =>
                         b.centerId === center.id &&
@@ -484,7 +595,6 @@ export default function CenterDetail() {
                         <Clock className={`w-3.5 h-3.5 mx-auto mb-1 ${isSlotFull ? 'text-slate-300' : isSelected ? 'text-cyan-400' : 'text-slate-400'}`} />
                         <span>{slot.time}</span>
                         
-                        {/* If activeCount >= maxCapacityPerSlot, label "SLOT FULL / LOCKED" */}
                         {isSlotFull ? (
                           <span className="block text-[9px] font-black uppercase mt-1 px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-700 tracking-wider">
                             SLOT FULL / LOCKED
@@ -501,18 +611,18 @@ export default function CenterDetail() {
               </div>
             </div>
 
-            {/* Step 3: Vehicle & Customer Information Form */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs">
-              <div className="mb-6">
+            {/* Step 3: Vehicle Information Form */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs">
+              <div className="mb-5">
                 <span className="text-xs font-bold text-brand-600 uppercase tracking-wider">
                   Step 3 of 3
                 </span>
                 <h2 className="text-xl font-black text-slate-900 mt-0.5">
-                  Vehicle & Contact Details
+                  Vehicle Registration Details
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Required by the wash operator to verify your vehicle on the hydraulic ramp.
-                </p>
+                {/* <p className="text-xs text-slate-500 mt-1">
+                  Required by the washing bay team to verify your vehicle on the hydraulic ramp.
+                </p> */}
               </div>
 
               {formError && (
@@ -536,15 +646,15 @@ export default function CenterDetail() {
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-mono font-bold tracking-wider uppercase text-slate-900"
                     required
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">
+                  {/* <span className="text-[10px] text-slate-400 mt-1 block">
                     e.g. KA-01 (Koramangala), KA-03 (Indiranagar), KA-05 (Jayanagar)
-                  </span>
+                  </span> */}
                 </div>
 
                 {/* Vehicle Model */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Vehicle Brand & Model
+                    Vehicle Model
                   </label>
                   <input
                     type="text"
@@ -554,41 +664,11 @@ export default function CenterDetail() {
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm text-slate-900 font-medium"
                   />
                 </div>
-
-                {/* Customer Name */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Your Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Rahul Sharma"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm text-slate-900 font-medium"
-                    required
-                  />
-                </div>
-
-                {/* Customer Phone */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mobile Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+91 98450 00000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm text-slate-900 font-medium"
-                  />
-                </div>
               </div>
             </div>
 
-            {/* VERIFIED-ONLY CUSTOMER REVIEWS (Requirement #3) */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-xs space-y-6">
-              
+            {/* Verified-Only Customer Reviews */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-xs space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -601,7 +681,7 @@ export default function CenterDetail() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    100% Verified reviews from customers with completed bookings
+                    100% verified feedback from completed vehicle washes
                   </p>
                 </div>
 
@@ -610,10 +690,9 @@ export default function CenterDetail() {
                 </span>
               </div>
 
-              {/* Review Submission Form / Locked Message (Requirement #3) */}
-              <div className="rounded-2xl p-5 border transition-all">
+              {/* Review Form or Locked Notice */}
+              <div className="rounded-2xl p-4 sm:p-5 border transition-all">
                 {hasCompletedBooking ? (
-                  /* Verified Customer Form: Interactive Star Rating + Comment */
                   <form onSubmit={handleReviewSubmit} className="space-y-4">
                     <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -627,7 +706,6 @@ export default function CenterDetail() {
                       </div>
                     )}
 
-                    {/* Interactive Star Picker */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         Rate Your Experience (1 - 5 Stars):
@@ -640,10 +718,10 @@ export default function CenterDetail() {
                             onClick={() => setUserRating(star)}
                             onMouseEnter={() => setHoverRating(star)}
                             onMouseLeave={() => setHoverRating(0)}
-                            className="p-1 focus:outline-hidden hover:scale-110 transition"
+                            className="p-1 focus:outline-hidden"
                           >
                             <Star
-                              className={`w-6 h-6 ${
+                              className={`w-6 h-6 transition-colors ${
                                 (hoverRating || userRating) >= star
                                   ? 'text-amber-400 fill-amber-400'
                                   : 'text-slate-300'
@@ -651,49 +729,41 @@ export default function CenterDetail() {
                             />
                           </button>
                         ))}
-                        <span className="ml-2 text-xs font-bold text-slate-700">
-                          {userRating} / 5 Stars
-                        </span>
                       </div>
                     </div>
 
-                    {/* Review text */}
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Your Feedback
+                        Your Feedback / Comments:
                       </label>
                       <textarea
                         rows={3}
                         value={reviewComment}
                         onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="How was the foam wash, waiting lounge, and bay speed? Share your experience with Bengaluru drivers..."
+                        placeholder="Tell others about the water quality, wash time, and staff behavior..."
                         required
-                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-xs sm:text-sm text-slate-900"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-xs text-slate-900"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
+                      className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
                     >
-                      Submit Verified Review
+                      Publish Verified Review
                     </button>
                   </form>
                 ) : (
-                  /* Locked Message for non-completed customers (Requirement #3) */
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center mx-auto mb-1">
-                      <Lock className="w-5 h-5 text-slate-600" />
+                  <div className="p-4 sm:p-5 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-2">
+                    <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center mx-auto text-slate-500">
+                      <Lock className="w-4 h-4" />
                     </div>
-                    <h4 className="text-sm font-bold text-slate-800">
-                      Reviews Reserved for Verified Bay Visitors
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-700">
+                      Review Submission Locked
                     </h4>
                     <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
                       Only verified customers who have completed a wash service at this center can leave a review.
                     </p>
-                    <span className="inline-block text-[11px] font-semibold text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-100">
-                      Tip: Book a slot above, get it completed in Vendor mode, and return here to unlock your review!
-                    </span>
                   </div>
                 )}
               </div>
@@ -759,11 +829,10 @@ export default function CenterDetail() {
               <h3 className="text-base font-black text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
                 <span>Booking Summary</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                  Awaiting Approval
+                  Instant Bay Lock
                 </span>
               </h3>
 
-              {/* Summary Details */}
               <div className="py-4 space-y-3 text-xs sm:text-sm">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Center</span>
@@ -813,10 +882,6 @@ export default function CenterDetail() {
                     <span>Bengaluru Zero-Wait Fee:</span>
                     <span>FREE (₹0)</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Applicable GST:</span>
-                    <span>Inclusive</span>
-                  </div>
                   <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline text-sm font-black text-slate-900">
                     <span>Total Amount:</span>
                     <span className="text-xl text-brand-600">₹{selectedService.price}</span>
@@ -824,11 +889,11 @@ export default function CenterDetail() {
                 </div>
               </div>
 
-              {/* Requirement: Clicking "Confirm & Book Slot" creates booking with initial status: 'pending' and redirects to /my-bookings */}
+              {/* Requirement: Clicking "Confirm & Book Slot" triggers checkout & redirects */}
               <button
                 type="button"
                 onClick={handleBookSlot}
-                className="w-full mt-2 py-3.5 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-extrabold text-sm rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full mt-2 py-3.5 px-4 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-extrabold text-sm rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-cyan-200" />
                 <span>Confirm & Book Slot</span>
@@ -836,17 +901,17 @@ export default function CenterDetail() {
               </button>
 
               <p className="text-[11px] text-center text-slate-400 mt-3">
-                Booking sends an instant approval request to {center.name}.
+                No upfront payment required. Pay upon completion at bay.
               </p>
             </div>
 
-            {/* Guaranteed Zero-Queue Banner */}
+            {/* Zero-Wait Guarantee Banner */}
             <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold block">100% Zero-Wait Guarantee</span>
+                <span className="font-bold block">100% Guaranteed Bay Allocation</span>
                 <span className="text-emerald-700 text-[11px]">
-                  Your slot request is verified directly by the washing bay team. Pay at center upon OTP entry.
+                  Your private verification code unlocks once accepted. Zero queue guaranteed.
                 </span>
               </div>
             </div>
@@ -856,6 +921,213 @@ export default function CenterDetail() {
         </div>
 
       </div>
+
+      {/* Mobile Sticky Bottom Floating Bar (Mobile-First Polish) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 p-3.5 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-2xl flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+            {selectedService.title}
+          </span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-black text-slate-900">₹{selectedService.price}</span>
+            <span className="text-[11px] text-brand-600 font-semibold">• {selectedSlot}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleBookSlot}
+          className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white text-xs font-black rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0"
+        >
+          <span>Confirm Slot</span>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Lazy Customer Registration & Fast Checkout Modal (Requirement #1) */}
+      {isCheckoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-brand-700 via-sky-700 to-slate-900 text-white p-5 sm:p-6 relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCheckoutModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition focus:outline-hidden"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-cyan-300">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-200">
+                    Fast Checkout • No Prior Login Needed
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-black text-white leading-tight">
+                    Confirm Your Wash Slot
+                  </h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Order Quick Summary Pill */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900">{center.name}</span>
+                  <span className="font-mono font-bold text-brand-700">{vehicleNumber}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>{selectedService.title}</span>
+                  <span className="font-black text-slate-900">₹{selectedService.price}</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                  <span>Schedule: <strong>{selectedDate}, {selectedSlot}</strong></span>
+                  <span className="text-emerald-600 font-bold">Bay Guaranteed</span>
+                </div>
+              </div>
+
+              {otpError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {!otpStep ? (
+                /* Step 1: Name and Phone Number Input */
+                <form onSubmit={handleSendLazyOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Your Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={lazyName}
+                        onChange={(e) => setLazyName(e.target.value)}
+                        placeholder="Your Name"
+                        required
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-semibold text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Mobile Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        value={lazyPhone}
+                        onChange={(e) => setLazyPhone(e.target.value)}
+                        placeholder="PH No"
+                        required
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-semibold text-slate-900 font-mono"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      We will send your slot verification code and bay status updates here.
+                    </span>
+                  </div>
+
+                  {/* Submit / Verification Trigger */}
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2"
+                    >
+                      <span>Proceed to Quick Mobile Verification</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    {/* Instant 1-Click Fast Track Option */}
+                    <button
+                      type="button"
+                      onClick={handleInstantAutoVerify}
+                      className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Instant 1-Click Verification & Book</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Step 2: Simulated SMS OTP Verification */
+                <form onSubmit={handleVerifyLazyOtp} className="space-y-4">
+                  {/* Demo Simulated SMS Toast */}
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-900 flex items-start gap-2.5">
+                    <KeyRound className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-bold block">Simulated SMS Verification</span>
+                      <span className="text-amber-800 text-[11px] block mt-0.5">
+                        Code sent to <strong>{lazyPhone}</strong>: <span className="font-mono font-black text-slate-900 bg-amber-200 px-1.5 py-0.2 rounded">OTP: {generatedOtp}</span>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEnteredOtp(generatedOtp)}
+                      className="px-2 py-1 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-[10px] rounded-lg shrink-0 transition"
+                    >
+                      Auto-Fill
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Enter 4-Digit SMS Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder={generatedOtp}
+                      className="w-full px-3.5 py-3 rounded-xl border border-brand-300 bg-brand-50/30 text-center font-mono font-black text-xl tracking-widest text-slate-900 focus:bg-white focus:outline-hidden focus:border-brand-600"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button
+                      type="submit"
+                      disabled={isBookingSubmitting}
+                      className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2"
+                    >
+                      {isBookingSubmitting ? (
+                        <span>Reserving Bay...</span>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Confirm Booking & View OTP Card</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setOtpStep(false)}
+                      className="text-xs text-slate-500 hover:text-slate-800 py-1"
+                    >
+                      ← Change Phone Number / Name
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

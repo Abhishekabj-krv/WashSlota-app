@@ -81,11 +81,11 @@ export default function CenterList({
             {userLocation && (
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                 <Navigation className="w-3 h-3 text-emerald-600 animate-pulse" />
-                <span>GPS Distance Active</span>
+                <span>GPS</span>{/*Distance Active*/}
               </span>
             )}
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          {/* <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Showing <span className="font-bold text-slate-900">{sortedCenters.length}</span> verified washing studios
             {selectedLocality !== 'All Bengaluru' && selectedLocality !== 'All Localities' && (
               <span> in <strong className="text-brand-600">{selectedLocality}</strong></span>
@@ -93,7 +93,7 @@ export default function CenterList({
             {searchQuery && (
               <span> matching "<strong className="text-brand-600">{searchQuery}</strong>"</span>
             )}
-          </p>
+          </p> */}
         </div>
 
         {/* Sort Controls */}
@@ -105,7 +105,7 @@ export default function CenterList({
             onChange={(e) => setSortBy(e.target.value)}
             className="text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:border-brand-500 shadow-2xs"
           >
-            <option value="nearest">Nearest First (Haversine GPS)</option>
+            <option value="nearest">Nearest First (GPS)</option>
             <option value="rating">Highest Rated (★ 4.8+)</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="recommended">Recommended</option>

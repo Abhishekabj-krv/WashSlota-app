@@ -27,7 +27,7 @@ export default function HeroSection({
   gpsLoading
 }) {
   return (
-    <div className="relative bg-gradient-to-b from-brand-900 via-slate-900 to-slate-900 text-white pt-8 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <div className="relative bg-gradient-to-b from-brand-800 via-slate-900 to-slate-900 text-white pt-8 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-6 overflow-hidden">
       
       {/* Background Decorative Glow Elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-brand-500/10 blur-3xl pointer-events-none rounded-full" />
@@ -37,10 +37,10 @@ export default function HeroSection({
         
         {/* Top Badges: Haversine GPS location indicator */}
         <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-cyan-300 shadow-xs">
+          {/* <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-cyan-300 shadow-xs">
             <Droplets className="w-3.5 h-3.5 text-cyan-400" />
             <span>Bengaluru Auto Wash Booking</span>
-          </div>
+          </div> */}
 
           {/* Interactive GPS Button / Pill (Requirement #1) */}
           <button
@@ -69,9 +69,9 @@ export default function HeroSection({
         </h1>
 
         {/* Subtitle */}
-        <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 mb-8 sm:mb-10 font-normal">
+        {/* <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 mb-8 sm:mb-10 font-normal">
           Skip weekend bay queues in HSR, Indiranagar, and Koramangala. Pre-book vetted water-recycling detailing studios with real-time GPS distances.
-        </p>
+        </p> */}
 
         {/* Integrated Search Box */}
         <div className="max-w-3xl mx-auto bg-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 shadow-2xl shadow-brand-950/50 border border-white/20 text-slate-800">
@@ -119,7 +119,23 @@ export default function HeroSection({
         </div>
 
         {/* Quick Category Filter Pills */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+        
+
+        {/* Trust Points Counter */}
+        <div className="mt-3 pt-5 border-t border-white/10 flex flex-wrap items-center justify-center gap-3 sm:gap- text-xs font-medium text-slate-500">
+          {/* <div className="flex items-center gap-1.5">
+            <Navigation className="w-4 h-4 text-cyan-400" />
+            <span>Haversine GPS Distances</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-cyan-400" />
+            <span>Dynamic Bay Slot Capacity</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>Customer-Held OTP Lock</span>
+          </div> */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-1 sm:gap-3">
           {CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat.id;
             return (
@@ -142,21 +158,6 @@ export default function HeroSection({
             );
           })}
         </div>
-
-        {/* Trust Points Counter */}
-        <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-medium text-slate-300">
-          <div className="flex items-center gap-1.5">
-            <Navigation className="w-4 h-4 text-cyan-400" />
-            <span>Haversine GPS Distances</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-cyan-400" />
-            <span>Dynamic Bay Slot Capacity</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>Customer-Held OTP Lock</span>
-          </div>
         </div>
 
       </div>

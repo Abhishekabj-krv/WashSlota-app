@@ -23,11 +23,12 @@ export default function App() {
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Home & Search Page with Hero, Filters, & Centers Grid */}
-              <Route path="/" element={<Home />} />
-
-              {/* Login & Role Selection Page (3 Tabs: Customer, Vendor, Super Admin) */}
+              {/* Root path (/) now loads the Login page by default */}
+              <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
+
+              {/* Home & Search Page is now accessible at /home */}
+              <Route path="/home" element={<Home />} />
 
               {/* Dynamic Center Detail Page with Service & Slot Picker */}
               <Route path="/center/:id" element={<CenterDetail />} />

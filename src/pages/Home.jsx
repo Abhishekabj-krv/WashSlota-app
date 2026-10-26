@@ -3,14 +3,14 @@ import HeroSection from '../components/HeroSection';
 import CenterList from '../components/CenterList';
 import { useApp } from '../context/AppContext';
 import { getDistanceInKm, DEFAULT_BENGALURU_COORDS } from '../utils/distance';
-import { 
-  ShieldCheck, 
-  Clock, 
-  Droplet, 
-  Award, 
-  HelpCircle, 
-  ChevronDown, 
-  ChevronUp, 
+import {
+  ShieldCheck,
+  Clock,
+  Droplet,
+  Award,
+  HelpCircle,
+  ChevronDown,
+    ChevronUp,
   Sparkles,
   Zap,
   Navigation
@@ -94,17 +94,10 @@ export default function Home() {
   };
 
   const faqs = [
-    {
-      q: "How does the Haversine distance calculation work?",
-      a: "WashSlot calculates straight-line spherical distance between your GPS coordinates and each washing center's hydraulic bay in Bengaluru. When you sort by 'Nearest First', studios closest to you appear at the top."
-    },
+    
     {
       q: "How does the Customer-Held OTP Verification work?",
       a: "For maximum security, your 4-digit OTP is strictly customer-held and never visible to the vendor until you arrive. Once the center accepts your slot, your OTP is unlocked. Show this code to the bay operator to begin your wash."
-    },
-    {
-      q: "Why are some bay slots marked 'SLOT FULL'?",
-      a: "To guarantee zero queue and optimal water pressure, each washing center maintains a strict capacity (typically 2 vehicles per timeslot). Once all bays for a slot are booked, the system automatically locks it."
     },
     {
       q: "Who is allowed to write customer reviews?",
@@ -142,15 +135,15 @@ export default function Home() {
       <section className="bg-white py-16 border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-xs font-bold text-brand-600 uppercase tracking-wider bg-brand-50 px-3 py-1 rounded-full">
+            {/* <span className="text-xs font-bold text-brand-600 uppercase tracking-wider bg-brand-50 px-3 py-1 rounded-full">
               Enterprise Auto Detailing Engine
-            </span>
+            </span> */}
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3">
               Guaranteed Bays, Real-Time Precision
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+            {/* <p className="text-xs sm:text-sm text-slate-500 mt-2">
               Combining GPS proximity with bay slot capacity limits and customer-held OTP security.
-            </p>
+            </p> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

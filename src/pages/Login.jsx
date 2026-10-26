@@ -23,27 +23,23 @@ export default function Login() {
 
   // Active tab: 'customer' | 'vendor' | 'superadmin'
   const [activeTab, setActiveTab] = useState(
-    location.state?.tab || 
+    location.state?.tab ||
     (currentUser?.role === 'superadmin' ? 'superadmin' : currentUser?.role === 'vendor' ? 'vendor' : 'customer')
   );
 
-  // Customer Form state
-  const [customerName, setCustomerName] = useState(
-    currentUser?.role === 'customer' ? currentUser.name : 'Rahul Sharma'
-  );
-  const [customerPhone, setCustomerPhone] = useState(
-    currentUser?.role === 'customer' ? (currentUser.phone || '+91 98450 78219') : '+91 98450 78219'
-  );
+  // Customer Form state (Cleaned to empty strings so no old/boolean values appear)
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   // Vendor Form state
   const [selectedCenterId, setSelectedCenterId] = useState(
-    currentUser?.vendorCenterId || centers[0]?.id || 'greenspark-hsr'
+    centers[0]?.id || 'greenspark-hsr'
   );
-  const [vendorPasscode, setVendorPasscode] = useState('1234');
+  const [vendorPasscode, setVendorPasscode] = useState('');
 
   // Super Admin Form state
-  const [adminEmail, setAdminEmail] = useState('founder@washslot.blr');
-  const [adminPasscode, setAdminPasscode] = useState('admin123');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPasscode, setAdminPasscode] = useState('');
 
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -70,8 +66,10 @@ export default function Login() {
       vendorCenterId: null
     });
 
-    // Redirect Customers to '/' or their intended page (e.g. /my-bookings)
-    navigate(from || '/', { replace: true });
+    // If 'from' is undefined, or points back to login/root, force '/home'
+    const targetPath = (!from || from === '/' || from === '/login') ? '/home' : from;
+    
+    navigate(targetPath, { replace: true });
   };
 
   // Handle Vendor Login
@@ -101,7 +99,7 @@ export default function Login() {
     navigate('/vendor/orders', { replace: true });
   };
 
-  // Handle Super Admin Login (Requirement #2)
+  // Handle Super Admin Login
   const handleSuperAdminLogin = (e) => {
     e.preventDefault();
     if (!adminPasscode.trim()) {
@@ -123,7 +121,7 @@ export default function Login() {
       vendorCenterId: null
     });
 
-    // Requirement: Redirect Super Admin upon login directly to /admin/dashboard
+    // Redirect Super Admin upon login directly to /admin/dashboard
     navigate('/admin/dashboard', { replace: true });
   };
 
@@ -144,9 +142,6 @@ export default function Login() {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Welcome to WashSlot Bengaluru
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Choose your portal: Customer bookings, Bay Operations, or Founder Portal
-          </p>
         </div>
 
         {/* 3-Tab Login Card */}
@@ -178,8 +173,8 @@ export default function Login() {
               }}
               className={`py-2.5 px-2 rounded-2xl text-[11px] sm:text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all ${
                 activeTab === 'vendor'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Store className={`w-3.5 h-3.5 ${activeTab === 'vendor' ? 'text-amber-400' : 'text-slate-400'}`} />
@@ -194,8 +189,8 @@ export default function Login() {
               }}
               className={`py-2.5 px-2 rounded-2xl text-[11px] sm:text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 transition-all ${
                 activeTab === 'superadmin'
-                  ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-sm'
-                  : 'text-purple-700 hover:text-purple-900'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-400 text-white shadow-sm'
+                  : 'text-violet-600 hover:text-indigo-200'
               }`}
             >
               <Crown className={`w-3.5 h-3.5 ${activeTab === 'superadmin' ? 'text-yellow-300' : 'text-purple-500'}`} />
@@ -214,11 +209,6 @@ export default function Login() {
             {/* TAB 1: CUSTOMER LOGIN */}
             {activeTab === 'customer' && (
               <form onSubmit={handleCustomerLogin} className="space-y-4">
-                <div className="bg-brand-50/60 border border-brand-100 rounded-xl p-3 text-xs text-brand-900">
-                  <span className="font-bold block">Customer Access</span>
-                  Book verified washing slots in HSR, Indiranagar, and track approvals live.
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Your Full Name <span className="text-rose-500">*</span>
@@ -229,7 +219,7 @@ export default function Login() {
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="Your Name"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-medium text-slate-900"
                     />
@@ -246,42 +236,10 @@ export default function Login() {
                       type="tel"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="+91 98450 78219"
+                      placeholder="PH No"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-medium text-slate-900"
                     />
-                  </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">
-                    Used to lookup your vehicle bookings & OTP notifications.
-                  </span>
-                </div>
-
-                {/* Quick Demo Pre-fills */}
-                <div className="pt-2">
-                  <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-                    Demo Customer Accounts:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomerName('Rahul Sharma');
-                        setCustomerPhone('+91 98450 78219');
-                      }}
-                      className="text-[11px] font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 transition"
-                    >
-                      Rahul Sharma (Creta)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomerName('Ananya Iyer');
-                        setCustomerPhone('+91 97411 33211');
-                      }}
-                      className="text-[11px] font-medium px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 transition"
-                    >
-                      Ananya Iyer (RE Bike)
-                    </button>
                   </div>
                 </div>
 
@@ -298,11 +256,6 @@ export default function Login() {
             {/* TAB 2: VENDOR LOGIN */}
             {activeTab === 'vendor' && (
               <form onSubmit={handleVendorLogin} className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-900">
-                  <span className="font-bold block text-amber-950">Washing Center Partner Terminal</span>
-                  Manage bay schedules, approve/reject customer requests, and mark jobs completed.
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Select Your Washing Center <span className="text-rose-500">*</span>
@@ -339,40 +292,6 @@ export default function Login() {
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-brand-600 text-sm font-mono font-bold tracking-widest text-slate-900"
                     />
                   </div>
-                  <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">
-                    ✓ Demo Passcode: <strong>1234</strong>
-                  </span>
-                </div>
-
-                {/* Quick Demo Pre-fills */}
-                <div className="pt-2">
-                  <span className="text-[11px] font-semibold text-slate-400 block mb-1.5">
-                    Quick Center Selector:
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCenterId('greenspark-hsr')}
-                      className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border transition ${
-                        selectedCenterId === 'greenspark-hsr'
-                          ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                          : 'bg-slate-100 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      GreenSpark (HSR)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCenterId('speedyglow-indiranagar')}
-                      className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border transition ${
-                        selectedCenterId === 'speedyglow-indiranagar'
-                          ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                          : 'bg-slate-100 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      SpeedyGlow (Indiranagar)
-                    </button>
-                  </div>
                 </div>
 
                 <button
@@ -386,17 +305,9 @@ export default function Login() {
               </form>
             )}
 
-            {/* TAB 3: SUPER ADMIN ACCESS (Requirement #2) */}
+            {/* TAB 3: SUPER ADMIN ACCESS */}
             {activeTab === 'superadmin' && (
               <form onSubmit={handleSuperAdminLogin} className="space-y-4">
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-900">
-                  <div className="flex items-center gap-1.5 font-bold mb-0.5 text-purple-950">
-                    <Crown className="w-4 h-4 text-purple-700" />
-                    <span>Founder & Super Admin Portal</span>
-                  </div>
-                  Full platform metrics, center onboarding, directory controls, and ecosystem audit.
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Master Admin Email
@@ -407,7 +318,7 @@ export default function Login() {
                       type="email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="founder@washslot.blr"
+                      placeholder="Email"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-purple-600 text-sm font-medium text-slate-900"
                     />
@@ -424,22 +335,10 @@ export default function Login() {
                       type="password"
                       value={adminPasscode}
                       onChange={(e) => setAdminPasscode(e.target.value)}
-                      placeholder="Enter Master Passcode"
+                      placeholder="Master Passcode"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-purple-200 bg-purple-50/30 focus:bg-white focus:outline-hidden focus:border-purple-600 text-sm font-mono font-bold tracking-wider text-slate-900"
                     />
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px]">
-                    <span className="text-purple-700 font-semibold">
-                      ✓ Master Passcode: <strong>admin123</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setAdminPasscode('admin123')}
-                      className="text-purple-600 hover:text-purple-800 underline font-bold"
-                    >
-                      Fill Key
-                    </button>
                   </div>
                 </div>
 
@@ -455,12 +354,6 @@ export default function Login() {
             )}
 
           </div>
-        </div>
-
-        {/* Security & System Info Footer */}
-        <div className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>3-Tier RBAC Protected (Customer • Vendor • Super Admin)</span>
         </div>
 
       </div>
