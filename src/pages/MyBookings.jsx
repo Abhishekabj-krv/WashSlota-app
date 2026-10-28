@@ -27,10 +27,11 @@ export default function MyBookings() {
 
   // Filter bookings for the logged-in customer
   const customerBookings = bookings.filter((b) => {
-    if (!currentUser || currentUser.role !== 'customer') return true;
+    if (!currentUser) return false;
     if (currentUser.phone && b.customerPhone === currentUser.phone) return true;
-    if (currentUser.name && b.customerName.toLowerCase() === currentUser.name.toLowerCase()) return true;
-    return true;
+    if (currentUser.email && b.customerEmail === currentUser.email) return true;
+    if (currentUser.name && b.customerName && b.customerName.toLowerCase() === currentUser.name.toLowerCase()) return true;
+    return false;
   });
 
   // Helper for Status Badge styling

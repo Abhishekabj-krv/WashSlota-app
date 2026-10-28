@@ -1,26 +1,29 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_MOCK_BOOKINGS, WASHING_CENTERS } from '../data/mockData';
+import { BENGALURU_STARTER_CENTERS_SEED } from '../data/mockData';
+import {
+  isSupabaseConfigured,
+  supabase,
+  signUpWithSupabase,
+  signInWithSupabase,
+  signInVendorWithPin,
+  signInSuperAdmin,
+  signOutWithSupabase,
+  fetchCentersFromSupabase,
+  syncCenterToSupabase,
+  fetchBookingsFromSupabase,
+  syncBookingToSupabase,
+  updateBookingInSupabase,
+  syncReviewToSupabase,
+} from '../lib/supabase';
 
 const AppContext = createContext();
 
-const BOOKINGS_STORAGE_KEY = 'washslot_blr_bookings_v6';
-const USER_STORAGE_KEY = 'washslot_blr_current_user_v6';
-const CENTERS_STORAGE_KEY = 'washslot_blr_centers_v6';
-
-// Initialize default centers with coordinates, status, capacity, and reviews
-const DEFAULT_CENTERS = WASHING_CENTERS.map((c) => ({
-  ...c,
-  status: c.status || 'active', // 'active' | 'inactive'
-  vendorPin: c.vendorPin || '1234',
-  maxCapacityPerSlot: c.maxCapacityPerSlot || 2,
-  latitude: c.latitude || 12.9716,
-  longitude: c.longitude || 77.5946,
-  adminContactNumber: c.adminContactNumber || '+91 98860 12345',
-  reviews: c.reviews || []
-}));
+const BOOKINGS_STORAGE_KEY = 'washslot_blr_bookings_v7';
+const USER_STORAGE_KEY = 'washslot_blr_current_user_v7';
+const CENTERS_STORAGE_KEY = 'washslot_blr_centers_v7';
 
 export function AppProvider({ children }) {
-  // Current logged in user: { role: 'customer' | 'vendor' | 'superadmin' | null, name: string, phone?: string, vendorCenterId: string | null }
+  // Current user state (defaults to null for unauthenticated visitors)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const savedUser = localStorage.getItem(USER_STORAGE_KEY);
@@ -30,16 +33,10 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error('Failed to parse current user from storage:', e);
     }
-    // Default demo session: Customer "Rahul Sharma"
-    return {
-      role: 'customer',
-      name: 'Rahul Sharma',
-      phone: '+91 98450 78219',
-      vendorCenterId: null
-    };
+    return null;
   });
 
-  // Global centers list (Dynamic: Super Admin can add and toggle centers, reviews can be appended)
+  // Centers list: starts clean (empty), fetched dynamically from Supabase
   const [centers, setCenters] = useState(() => {
     try {
       const savedCenters = localStorage.getItem(CENTERS_STORAGE_KEY);
@@ -49,10 +46,10 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error('Failed to parse centers from storage:', e);
     }
-    return DEFAULT_CENTERS;
+    return [];
   });
 
-  // Global bookings list
+  // Bookings list: starts clean (empty), fetched dynamically from Supabase
   const [bookings, setBookings] = useState(() => {
     try {
       const savedBookings = localStorage.getItem(BOOKINGS_STORAGE_KEY);
@@ -62,13 +59,110 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error('Failed to parse bookings from storage:', e);
     }
-    return INITIAL_MOCK_BOOKINGS;
+    return [];
   });
 
   // Active vendor center id
   const [selectedVendorCenter, setSelectedVendorCenter] = useState(
-    currentUser?.vendorCenterId || 'greenspark-hsr'
+    currentUser?.vendorCenterId || null
   );
+
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
+  // 1. Listen for real Supabase Auth State Changes & Sync Session
+  useEffect(() => {
+    let subscription = null;
+
+    if (isSupabaseConfigured && supabase) {
+      // Fetch initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          syncSessionUser(session.user);
+        } else if (!currentUser || currentUser.role === 'customer') {
+          // If no active Supabase session and user was a customer, clear
+          if (!localStorage.getItem(USER_STORAGE_KEY)) {
+            setCurrentUser(null);
+          }
+        }
+        setIsLoadingAuth(false);
+      });
+
+      // Listen for auth state change
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await syncSessionUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          localStorage.removeItem(USER_STORAGE_KEY);
+        }
+      });
+
+      subscription = data?.subscription;
+    } else {
+      setIsLoadingAuth(false);
+    }
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Helper to load user profile from Supabase profiles table on sign in
+  const syncSessionUser = async (authUser) => {
+    try {
+      let role = 'customer';
+      let name = authUser.user_metadata?.name || 'Customer';
+      let phone = authUser.user_metadata?.phone || '';
+      let vendorCenterId = null;
+
+      if (isSupabaseConfigured && supabase) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .maybeSingle();
+
+        if (prof) {
+          name = prof.name || name;
+          phone = prof.phone || phone;
+          role = prof.role || role;
+          vendorCenterId = prof.vendor_center_id || null;
+        }
+      }
+
+      const userObj = {
+        id: authUser.id,
+        name,
+        email: authUser.email,
+        phone,
+        role,
+        vendorCenterId,
+      };
+
+      setCurrentUser(userObj);
+      if (vendorCenterId) setSelectedVendorCenter(vendorCenterId);
+    } catch (e) {
+      console.warn('Session user sync error:', e);
+    }
+  };
+
+  // 2. Fetch Centers dynamically from Supabase database on mount
+  useEffect(() => {
+    fetchCentersFromSupabase().then((data) => {
+      if (Array.isArray(data)) {
+        setCenters(data);
+      }
+    });
+  }, []);
+
+  // 3. Fetch Bookings dynamically from Supabase database on mount
+  useEffect(() => {
+    fetchBookingsFromSupabase().then((data) => {
+      if (Array.isArray(data)) {
+        setBookings(data);
+      }
+    });
+  }, [currentUser]);
 
   // Sync current user to localStorage
   useEffect(() => {
@@ -102,26 +196,72 @@ export function AppProvider({ children }) {
   }, [bookings]);
 
   /**
-   * Log in user as Customer, Vendor, or Super Admin
+   * Real Supabase Customer Sign Up
+   */
+  const signUpCustomer = async ({ name, email, phone, password }) => {
+    const res = await signUpWithSupabase({ name, email, phone, password });
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+    }
+    return res;
+  };
+
+  /**
+   * Real Supabase Customer Sign In
+   */
+  const signInCustomer = async ({ identifier, password }) => {
+    const res = await signInWithSupabase({ identifier, password });
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+    }
+    return res;
+  };
+
+  /**
+   * Vendor Sign In
+   */
+  const signInVendor = async ({ centerId, pin }) => {
+    const res = await signInVendorWithPin({ centerId, pin, centersList: centers });
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+      setSelectedVendorCenter(res.user.vendorCenterId);
+    }
+    return res;
+  };
+
+  /**
+   * Super Admin Sign In (via hidden /founder-portal route)
+   */
+  const signInSuperAdminHandler = async ({ email, passcode }) => {
+    const res = await signInSuperAdmin({ email, passcode });
+    if (res.success && res.user) {
+      setCurrentUser(res.user);
+    }
+    return res;
+  };
+
+  /**
+   * Generic loginUser helper for backward compatibility
    */
   const loginUser = (userData) => {
-    const role = userData.role;
+    const role = userData.role || 'customer';
     let name = userData.name;
     if (!name) {
       if (role === 'superadmin') name = 'Platform Founder (Super Admin)';
       else if (role === 'vendor') name = 'Center Manager';
-      else name = 'Valued Customer';
+      else name = 'Customer';
     }
 
     const newUser = {
+      id: userData.id || `usr-${Date.now()}`,
       role,
       name,
+      email: userData.email || '',
       phone: userData.phone || '',
-      vendorCenterId: role === 'vendor' ? (userData.vendorCenterId || centers[0]?.id || 'greenspark-hsr') : null
+      vendorCenterId: role === 'vendor' ? (userData.vendorCenterId || centers[0]?.id || null) : null,
     };
 
     setCurrentUser(newUser);
-
     if (newUser.role === 'vendor' && newUser.vendorCenterId) {
       setSelectedVendorCenter(newUser.vendorCenterId);
     }
@@ -131,31 +271,38 @@ export function AppProvider({ children }) {
   /**
    * Log out user
    */
-  const logoutUser = () => {
+  const logoutUser = async () => {
+    await signOutWithSupabase();
     setCurrentUser(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
   };
 
   /**
-   * Lazy Customer Registration & Instant Session Creation (Requirement #1)
-   * Instantly creates and saves customer profile during checkout without prior login
+   * Lazy Customer Registration & Instant Session Creation (used during express checkout)
    */
-  const registerCustomer = (customerData) => {
+  const registerCustomer = async (customerData) => {
     const name = customerData.name?.trim() || 'Valued Customer';
     const phone = customerData.phone?.trim() || '+91 98450 00000';
+    const email = customerData.email?.trim() || `${phone.replace(/\D/g, '')}@washslot.blr`;
+
     const newCustomer = {
+      id: `usr-${Date.now()}`,
       role: 'customer',
       name,
+      email,
       phone,
-      vendorCenterId: null
+      vendorCenterId: null,
     };
+
     setCurrentUser(newCustomer);
     return newCustomer;
   };
 
   /**
    * Super Admin Function: addCenter(newCenterData)
+   * Dynamically adds a new washing studio to Supabase & local state
    */
-  const addCenter = (newCenterData) => {
+  const addCenter = async (newCenterData) => {
     const slug = newCenterData.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -174,6 +321,18 @@ export function AppProvider({ children }) {
         description: 'High-pressure touchless snow foam wash, underbody rinse, and microfiber hand-drying.',
         includes: ['Touchless snow foam', 'High-pressure underbody rinse', 'Tire shine coating', 'Streak-free window wipe']
       },
+      {
+        id: `srv-${slug}-2`,
+        title: 'Complete Body Wash + Underchassis Blast',
+        vehicleType: 'Car',
+        category: 'car',
+        price: (Number(newCenterData.startingPrice) || 249) + 200,
+        originalPrice: (Number(newCenterData.startingPrice) || 249) + 350,
+        duration: '45 mins',
+        popular: true,
+        description: '3-stage snow foam wash with dual underchassis rotating water nozzles and tire dressing.',
+        includes: ['3-Stage Snow Foam', 'Underchassis high pressure', 'Microfiber hand dry', 'All-glass streakless clean']
+      }
     ];
 
     const defaultSlots = [
@@ -191,14 +350,14 @@ export function AppProvider({ children }) {
     const createdCenter = {
       id: slug,
       name: newCenterData.name.trim(),
-      tagline: newCenterData.tagline || 'Bengaluru verified water-recycling detailing center',
+      tagline: newCenterData.tagline || 'Bengaluru verified detailing studio',
       locality: newCenterData.locality || 'HSR Layout',
-      latitude: newCenterData.latitude || 12.9352,
-      longitude: newCenterData.longitude || 77.6245,
+      latitude: Number(newCenterData.latitude) || 12.9352,
+      longitude: Number(newCenterData.longitude) || 77.6245,
       address: newCenterData.address || `${newCenterData.locality}, Bengaluru, Karnataka 560102`,
       landmark: newCenterData.landmark || 'Near Main Ring Road',
       rating: 4.8,
-      reviewsCount: 1,
+      reviewsCount: 0,
       startingPrice: Number(newCenterData.startingPrice) || 249,
       maxCapacityPerSlot: Number(newCenterData.maxCapacityPerSlot) || 2,
       categories: ['car', 'bike', 'foam'],
@@ -218,29 +377,49 @@ export function AppProvider({ children }) {
     };
 
     setCenters((prev) => [createdCenter, ...prev]);
+
+    // Sync to Supabase
+    await syncCenterToSupabase(createdCenter);
     return createdCenter;
+  };
+
+  /**
+   * Super Admin Function: Seed Starter Bengaluru Studios into clean database
+   */
+  const seedDefaultCenters = async () => {
+    const starterCenters = BENGALURU_STARTER_CENTERS_SEED;
+    setCenters(starterCenters);
+    for (const c of starterCenters) {
+      await syncCenterToSupabase(c);
+    }
+    return starterCenters;
   };
 
   /**
    * Super Admin Function: toggleCenterStatus(centerId)
    */
-  const toggleCenterStatus = (centerId) => {
+  const toggleCenterStatus = async (centerId) => {
+    let targetCenter = null;
     setCenters((prev) =>
       prev.map((c) => {
         if (c.id === centerId) {
           const nextStatus = c.status === 'inactive' ? 'active' : 'inactive';
-          return { ...c, status: nextStatus };
+          targetCenter = { ...c, status: nextStatus };
+          return targetCenter;
         }
         return c;
       })
     );
+
+    if (targetCenter) {
+      await syncCenterToSupabase(targetCenter);
+    }
   };
 
   /**
-   * Verified Customer Review Submission (Requirement #3)
-   * Only verified customers who have a completed booking at this center can add reviews
+   * Verified Customer Review Submission
    */
-  const addCenterReview = ({ centerId, rating, comment, vehicleModel }) => {
+  const addCenterReview = async ({ centerId, rating, comment, vehicleModel }) => {
     const newRev = {
       id: `rev-${Date.now()}`,
       customerName: currentUser?.name || 'Verified Customer',
@@ -268,22 +447,21 @@ export function AppProvider({ children }) {
       })
     );
 
+    await syncReviewToSupabase(newRev, centerId);
     return newRev;
   };
 
   /**
-   * Global function: addBooking(newBooking)
-   * Enforces strict slot-locking & anti-double-booking:
+   * Slot-Locking & Booking Creation:
    * Active bookings ('pending' | 'accepted') consume bay capacity.
-   * If slot reaches center.maxCapacityPerSlot, new bookings are rejected.
    */
-  const addBooking = (newBookingData) => {
+  const addBooking = async (newBookingData) => {
     const bookingDate = newBookingData.bookingDate || 'Today';
     const slotTime = newBookingData.slotTime;
     const targetCenter = centers.find((c) => c.id === newBookingData.centerId);
     const maxCapacity = targetCenter?.maxCapacityPerSlot || 2;
 
-    // Real-time capacity check: count active bookings for this center, date, and slot
+    // Real-time slot conflict check
     const activeCount = bookings.filter((b) =>
       b.centerId === newBookingData.centerId &&
       b.bookingDate === bookingDate &&
@@ -308,6 +486,7 @@ export function AppProvider({ children }) {
       locality: newBookingData.locality || 'Bengaluru',
       customerName: newBookingData.customerName || currentUser?.name || 'Customer',
       customerPhone: newBookingData.customerPhone || currentUser?.phone || '+91 98000 00000',
+      customerEmail: newBookingData.customerEmail || currentUser?.email || '',
       vehicleNumber: (newBookingData.vehicleNumber || 'KA 01 XX 0000').toUpperCase().trim(),
       vehicleModel: newBookingData.vehicleModel || (newBookingData.vehicleType === 'Bike' ? 'Standard Bike' : 'Standard Car'),
       vehicleType: newBookingData.vehicleType || 'Car',
@@ -315,7 +494,7 @@ export function AppProvider({ children }) {
       price: Number(newBookingData.price) || 299,
       bookingDate,
       slotTime,
-      otp: newBookingData.otp || generatedOtp, // Customer-held verification code
+      otp: newBookingData.otp || generatedOtp,
       status: newBookingData.status || 'pending',
       createdAt: new Date().toISOString(),
       completedAt: null,
@@ -323,13 +502,16 @@ export function AppProvider({ children }) {
     };
 
     setBookings((prev) => [newBooking, ...prev]);
+
+    // Sync to Supabase
+    await syncBookingToSupabase(newBooking);
     return newBooking;
   };
 
   /**
-   * Global function: updateBookingStatus(bookingId, newStatus)
+   * Update booking status
    */
-  const updateBookingStatus = (bookingId, newStatus) => {
+  const updateBookingStatus = async (bookingId, newStatus) => {
     setBookings((prev) =>
       prev.map((b) => {
         if (b.id === bookingId) {
@@ -342,52 +524,40 @@ export function AppProvider({ children }) {
         return b;
       })
     );
+
+    await updateBookingInSupabase(bookingId, newStatus);
   };
 
   /**
-   * Secure Vendor OTP Verification for a specific Order (Requirement #2)
-   * The OTP is held by the customer and NEVER shown in the vendor UI.
-   * Vendor inputs code provided by arriving customer.
+   * Customer-Held OTP Verification by Vendor
    */
-  const verifyBookingOtp = (bookingId, enteredOtp) => {
+  const verifyBookingOtp = async (bookingId, enteredOtp) => {
     const cleanOtp = (enteredOtp || '').trim();
     if (!cleanOtp) {
-      return {
-        success: false,
-        message: 'Please enter the 4-digit code provided by the customer.'
-      };
+      return { success: false, message: 'Please enter the 4-digit code provided by the customer.' };
     }
 
     const booking = bookings.find((b) => b.id === bookingId);
     if (!booking) {
-      return {
-        success: false,
-        message: 'Booking not found.'
-      };
+      return { success: false, message: 'Booking not found.' };
     }
 
     if (booking.status === 'completed') {
-      return {
-        success: false,
-        message: 'This booking has already been marked as completed.'
-      };
+      return { success: false, message: 'This booking has already been marked as completed.' };
     }
 
-    // Exact OTP comparison
     if (cleanOtp !== booking.otp) {
-      return {
-        success: false,
-        message: 'Invalid Code. Ask customer for code shown on their booking card'
-      };
+      return { success: false, message: 'Invalid Code. Ask customer for code shown on their booking card' };
     }
 
-    // Mark as completed
     const updatedBookings = bookings.map((b) =>
       b.id === bookingId
         ? { ...b, status: 'completed', completedAt: new Date().toISOString() }
         : b
     );
     setBookings(updatedBookings);
+
+    await updateBookingInSupabase(bookingId, 'completed');
 
     return {
       success: true,
@@ -396,56 +566,11 @@ export function AppProvider({ children }) {
   };
 
   /**
-   * General OTP check (gate entrance)
-   */
-  const verifyOtp = (otpInput, centerIdFilter = null) => {
-    const cleanOtp = (otpInput || '').trim();
-    if (!cleanOtp) {
-      return { success: false, message: 'Please enter a 4-digit OTP.' };
-    }
-
-    const matchIndex = bookings.findIndex((b) => {
-      const matchCenter = centerIdFilter ? b.centerId === centerIdFilter : true;
-      return matchCenter && b.otp === cleanOtp;
-    });
-
-    if (matchIndex === -1) {
-      return {
-        success: false,
-        message: 'Invalid Code. Ask customer for code shown on their booking card'
-      };
-    }
-
-    const matchedBooking = bookings[matchIndex];
-    if (matchedBooking.status === 'completed') {
-      return {
-        success: false,
-        message: `This slot for ${matchedBooking.customerName} (${matchedBooking.vehicleNumber}) is already completed!`
-      };
-    }
-
-    const updated = [...bookings];
-    const completedBooking = {
-      ...matchedBooking,
-      status: 'completed',
-      completedAt: new Date().toISOString()
-    };
-    updated[matchIndex] = completedBooking;
-    setBookings(updated);
-
-    return {
-      success: true,
-      booking: completedBooking,
-      message: `Verified! Wash completed for ${matchedBooking.customerName}'s ${matchedBooking.vehicleNumber}.`
-    };
-  };
-
-  /**
-   * Reset mock data
+   * Reset mock data / clean state
    */
   const resetToInitialData = () => {
-    setBookings(INITIAL_MOCK_BOOKINGS);
-    setCenters(DEFAULT_CENTERS);
+    setBookings([]);
+    setCenters([]);
     localStorage.removeItem(BOOKINGS_STORAGE_KEY);
     localStorage.removeItem(CENTERS_STORAGE_KEY);
   };
@@ -455,18 +580,24 @@ export function AppProvider({ children }) {
       value={{
         currentUser,
         setCurrentUser,
+        isLoadingAuth,
+        signUpCustomer,
+        signInCustomer,
+        signInVendor,
+        signInSuperAdmin: signInSuperAdminHandler,
         loginUser,
         logoutUser,
         registerCustomer,
         centers,
+        setCenters,
         addCenter,
+        seedDefaultCenters,
         toggleCenterStatus,
         addCenterReview,
         bookings,
         addBooking,
         updateBookingStatus,
         verifyBookingOtp,
-        verifyOtp,
         selectedVendorCenter,
         setSelectedVendorCenter,
         resetToInitialData

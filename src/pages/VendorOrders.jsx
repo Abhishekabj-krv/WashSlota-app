@@ -54,11 +54,11 @@ export default function VendorOrders() {
   const [globalOtpMessage, setGlobalOtpMessage] = useState(null);
 
   // Vendor Center info
-  const centerId = currentUser?.vendorCenterId || 'greenspark-hsr';
-  const currentCenter = centers.find((c) => c.id === centerId) || centers[0];
+  const centerId = currentUser?.vendorCenterId || (centers.length > 0 ? centers[0]?.id : null);
+  const currentCenter = centers.find((c) => c.id === centerId) || (centers.length > 0 ? centers[0] : null);
 
   // Core requirement: Display bookings matching ONLY the logged-in vendor's center ID
-  const centerOrders = bookings.filter((b) => b.centerId === centerId);
+  const centerOrders = centerId ? bookings.filter((b) => b.centerId === centerId) : [];
 
   // Status-based counts
   const pendingOrders = centerOrders.filter((b) => b.status === 'pending');
@@ -137,9 +137,9 @@ export default function VendorOrders() {
     });
   };
 
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logoutUser();
+    navigate('/partner-login');
   };
 
   // Status Badge Helper with high contrast light-theme colors

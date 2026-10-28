@@ -5,10 +5,13 @@ import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import AuthGate from './components/AuthGate';
 
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
+import PartnerLogin from './pages/PartnerLogin';
+import FounderPortal from './pages/FounderPortal';
 import CenterDetail from './pages/CenterDetail';
 import MyBookings from './pages/MyBookings';
 import VendorOrders from './pages/VendorOrders';
@@ -19,16 +22,29 @@ export default function App() {
     <BrowserRouter>
       <AppProvider>
         <ScrollToTop />
+        {/* Customer Auth Gate intercepts unauthenticated visitors browsing studios */}
+        <AuthGate />
         <div className="flex flex-col min-h-screen bg-slate-50 text-slate-800">
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Root path (/) now loads the Login page by default */}
-              <Route path="/" element={<Login />} />
+              {/* 1. Customer Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/home" element={<Home />} />
+              
+              {/* Dedicated Customer-Only Auth URL (Requirement #1) */}
               <Route path="/login" element={<Login />} />
 
-              {/* Home & Search Page is now accessible at /home */}
-              <Route path="/home" element={<Home />} />
+              {/* 2. Separate Standalone Vendor Partner Portal URL (Requirement #2) */}
+              <Route path="/partner-login" element={<PartnerLogin />} />
+              <Route path="/vendor-portal" element={<Navigate to="/partner-login" replace />} />
+              <Route path="/vendor" element={<Navigate to="/partner-login" replace />} />
+
+              {/* 3. Separate Secret Super Admin URL (Requirement #3) */}
+              <Route path="/founder-portal" element={<FounderPortal />} />
+              <Route path="/admin-login" element={<Navigate to="/founder-portal" replace />} />
+              <Route path="/secret-admin-login" element={<Navigate to="/founder-portal" replace />} />
+              <Route path="/admin" element={<Navigate to="/founder-portal" replace />} />
 
               {/* Dynamic Center Detail Page with Service & Slot Picker */}
               <Route path="/center/:id" element={<CenterDetail />} />
@@ -36,7 +52,7 @@ export default function App() {
               {/* Customer Bookings Live Tracking */}
               <Route path="/my-bookings" element={<MyBookings />} />
 
-              {/* Protected Vendor Orders Dashboard (Strict RBAC: Vendor Role) */}
+              {/* Protected Vendor Orders Terminal (Strict RBAC: Vendor Role) */}
               <Route
                 path="/vendor/orders"
                 element={
@@ -46,7 +62,7 @@ export default function App() {
                 }
               />
 
-              {/* Protected Super Admin Portal (Strict RBAC: Super Admin Role) */}
+              {/* Protected Super Admin Dashboard (Strict RBAC: Super Admin Role) */}
               <Route
                 path="/admin/dashboard"
                 element={
@@ -56,11 +72,7 @@ export default function App() {
                 }
               />
 
-              {/* Convenience redirects */}
-              <Route path="/vendor" element={<Navigate to="/vendor/orders" replace />} />
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-
-              {/* Fallback redirect */}
+              {/* Fallback redirect to Home */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

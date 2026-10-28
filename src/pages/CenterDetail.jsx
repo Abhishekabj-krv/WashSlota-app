@@ -43,16 +43,16 @@ export default function CenterDetail() {
 
   // Find center by id from dynamic centers list
   const center = useMemo(() => {
-    return centers.find((c) => c.id === id) || centers[0];
+    return centers.find((c) => c.id === id) || (centers.length > 0 ? centers[0] : null);
   }, [centers, id]);
 
   // Dynamic booking state
   const [selectedServiceId, setSelectedServiceId] = useState(
-    center.services[0]?.id || ''
+    center?.services?.[0]?.id || ''
   );
   const [selectedDate, setSelectedDate] = useState('Today');
   const [selectedSlot, setSelectedSlot] = useState(
-    center.timeSlots[0]?.time || '10:00 AM'
+    center?.timeSlots?.[0]?.time || '10:00 AM'
   );
 
   // Customer vehicle & contact info (pre-fill from currentUser if available)
@@ -62,14 +62,14 @@ export default function CenterDetail() {
   const [customerPhone, setCustomerPhone] = useState(
     currentUser?.role === 'customer' ? (currentUser.phone || '') : ''
   );
-  const [vehicleNumber, setVehicleNumber] = useState('KA 01 MQ 7842');
-  const [vehicleModel, setVehicleModel] = useState('Hyundai Creta 1.5');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
   const [formError, setFormError] = useState('');
 
   // Lazy Customer Checkout Modal state (Requirement #1)
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
-  const [lazyName, setLazyName] = useState(customerName || 'Rahul Sharma');
-  const [lazyPhone, setLazyPhone] = useState(customerPhone || '+91 98450 78219');
+  const [lazyName, setLazyName] = useState(customerName || '');
+  const [lazyPhone, setLazyPhone] = useState(customerPhone || '');
   const [otpStep, setOtpStep] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
@@ -86,11 +86,13 @@ export default function CenterDetail() {
   const [serviceFilter, setServiceFilter] = useState('all');
 
   const selectedService = useMemo(() => {
+    if (!center || !center.services || center.services.length === 0) return null;
     return center.services.find((s) => s.id === selectedServiceId) || center.services[0];
   }, [center, selectedServiceId]);
 
   // Filtered services
   const visibleServices = useMemo(() => {
+    if (!center || !center.services) return [];
     if (serviceFilter === 'all') return center.services;
     if (serviceFilter === 'car') return center.services.filter(s => s.vehicleType === 'Car' || s.vehicleType === 'Both');
     if (serviceFilter === 'bike') return center.services.filter(s => s.vehicleType === 'Bike' || s.vehicleType === 'Both');
@@ -262,6 +264,29 @@ export default function CenterDetail() {
       executeBooking(lazyName, lazyPhone);
     }, 500);
   };
+
+  if (!center) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 p-8 text-center space-y-4 shadow-sm">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">Studio Not Found</h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This washing studio is not available or has not been onboarded yet by the platform administrator.
+          </p>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Explore Other Studios</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 sm:py-8 px-4 sm:px-6 lg:px-8 pb-28 lg:pb-12">

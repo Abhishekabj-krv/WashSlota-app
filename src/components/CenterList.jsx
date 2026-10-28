@@ -35,9 +35,9 @@ export default function CenterList({
         const matchName = center.name.toLowerCase().includes(query);
         const matchLocality = center.locality.toLowerCase().includes(query);
         const matchAddress = center.address.toLowerCase().includes(query);
-        const matchService = center.services.some((s) =>
+        const matchService = center.services && Array.isArray(center.services) ? center.services.some((s) =>
           s.title.toLowerCase().includes(query)
-        );
+        ) : false;
 
         if (!matchName && !matchLocality && !matchAddress && !matchService) {
           return false;
@@ -126,18 +126,29 @@ export default function CenterList({
           <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-7 h-7" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">No centers found near your location</h3>
-          <p className="text-xs sm:text-sm text-slate-500 mb-6">
-            We couldn't find any centers matching your filters. Try switching locality to "All Localities" or clear your search term.
-          </p>
-          <button
-            type="button"
-            onClick={onResetFilters}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset All Filters
-          </button>
+          {centers.length === 0 ? (
+            <>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No washing studios onboarded yet</h3>
+              <p className="text-xs sm:text-sm text-slate-500 mb-4 leading-relaxed">
+                The database is in clean production state. Platform administrators can onboard Bengaluru washing studios via the Founder Portal.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No centers match your filters</h3>
+              <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
+                We couldn't find any centers matching your filters. Try switching locality to "All Localities" or clear your search term.
+              </p>
+              <button
+                type="button"
+                onClick={onResetFilters}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-xs transition"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset All Filters
+              </button>
+            </>
+          )}
         </div>
       )}
 

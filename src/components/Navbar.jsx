@@ -18,7 +18,7 @@ import { useApp } from '../context/AppContext';
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, logoutUser, bookings, loginUser, centers } = useApp();
+  const { currentUser, logoutUser, bookings, centers } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
@@ -28,8 +28,8 @@ export default function Navbar() {
   const isSuperAdmin = currentUser?.role === 'superadmin';
 
   // Vendor shop name lookup
-  const vendorCenter = centers.find(c => c.id === currentUser?.vendorCenterId);
-  const vendorShopName = vendorCenter ? vendorCenter.name : (currentUser?.name || 'Vendor Shop');
+  const vendorCenter = centers.find((c) => c.id === currentUser?.vendorCenterId);
+  const vendorShopName = vendorCenter ? vendorCenter.name : (currentUser?.name || 'Partner Studio');
 
   // Vendor pending orders count
   const vendorPendingCount = bookings.filter((b) => {
@@ -59,34 +59,15 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    logoutUser();
-    navigate('/login');
-  };
-
-  // Switch to specific role
-  const switchToRole = (role) => {
-    setRoleMenuOpen(false);
-    if (role === 'superadmin') {
-      loginUser({
-        role: 'superadmin',
-        name: 'Platform Founder (Super Admin)'
-      });
-      navigate('/admin/dashboard');
-    } else if (role === 'vendor') {
-      loginUser({
-        role: 'vendor',
-        name: 'GreenSpark Eco Wash (Manager)',
-        vendorCenterId: 'greenspark-hsr'
-      });
-      navigate('/vendor/orders');
+  const handleLogout = async () => {
+    const role = currentUser?.role;
+    await logoutUser();
+    if (role === 'vendor') {
+      navigate('/partner-login');
+    } else if (role === 'superadmin') {
+      navigate('/founder-portal');
     } else {
-      loginUser({
-        role: 'customer',
-        name: 'Rahul Sharma',
-        phone: '+91 98450 78219'
-      });
-      navigate('/my-bookings');
+      navigate('/login');
     }
   };
 
@@ -124,7 +105,7 @@ export default function Navbar() {
 
           {/* Center Navigation Links (Clean, Uncluttered Desktop) */}
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            {/* <Link
+            <Link
               to="/"
               className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition ${
                 location.pathname === '/' 
@@ -132,60 +113,66 @@ export default function Navbar() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              Explore Centers
-            </Link> */}
+              Explore Studios
+            </Link>
 
-            {/* My Bookings link */}
-            {/* <Link
-              to="/my-bookings"
-              className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
-                location.pathname === '/my-bookings'
-                  ? 'text-brand-600 bg-brand-50/80 font-bold' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <CalendarCheck className="w-4 h-4 text-brand-600" />
-              <span>My Bookings</span>
-              {customerActiveCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-brand-100 text-brand-700 font-black">
-                  {customerActiveCount}
-                </span>
-              )}
-            </Link> */}
+            {/* My Bookings link (for customers or when logged in) */}
+            {currentUser && (
+              <Link
+                to="/my-bookings"
+                className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-1.5 ${
+                  location.pathname === '/my-bookings'
+                    ? 'text-brand-600 bg-brand-50/80 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <CalendarCheck className="w-4 h-4 text-brand-600" />
+                <span>My Bookings</span>
+                {customerActiveCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-brand-100 text-brand-700 font-black">
+                    {customerActiveCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
-            {/* Vendor Orders link */}
-            {/* <Link
-              to="/vendor/orders"
-              className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
-                location.pathname.startsWith('/vendor')
-                  ? 'text-amber-800 bg-amber-50/80 font-bold' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Store className="w-4 h-4 text-amber-500" />
-              <span>Vendor Terminal</span>
-              {vendorPendingCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-950 font-black animate-pulse">
-                  {vendorPendingCount}
-                </span>
-              )}
-            </Link> */}
+            {/* Vendor Orders link (ONLY if logged in as vendor) */}
+            {isVendor && (
+              <Link
+                to="/vendor/orders"
+                className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-1.5 ${
+                  location.pathname.startsWith('/vendor')
+                    ? 'text-amber-800 bg-amber-50 font-bold' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Store className="w-4 h-4 text-amber-500" />
+                <span>Studio Orders</span>
+                {vendorPendingCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-950 font-black animate-pulse">
+                    {vendorPendingCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
-            {/* Super Admin Dashboard Link */}
-            {/* <Link
-              to="/admin/dashboard"
-              className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-2 ${
-                location.pathname.startsWith('/admin')
-                  ? 'text-purple-700 bg-purple-50 font-bold' 
-                  : 'text-slate-600 hover:text-purple-700 hover:bg-purple-50/50'
-              }`}
-            >
-              <Crown className="w-4 h-4 text-purple-600" />
-              <span>Super Admin</span>
-            </Link> */}
+            {/* Super Admin Dashboard Link (ONLY if logged in as Super Admin) */}
+            {isSuperAdmin && (
+              <Link
+                to="/admin/dashboard"
+                className={`px-3.5 py-1.5 rounded-xl text-xs lg:text-sm font-semibold transition inline-flex items-center gap-1.5 ${
+                  location.pathname.startsWith('/admin')
+                    ? 'text-purple-700 bg-purple-50 font-bold' 
+                    : 'text-slate-600 hover:text-purple-700 hover:bg-purple-50/50'
+                }`}
+              >
+                <Crown className="w-4 h-4 text-purple-600" />
+                <span>Admin Dashboard</span>
+              </Link>
+            )}
           </nav>
 
-          {/* Right Action: Clean Single Profile Dropdown Trigger */}
+          {/* Right Action: Clean Profile Dropdown Trigger */}
           <div className="hidden md:flex items-center gap-3" ref={profileMenuRef}>
             {currentUser ? (
               <div className="relative">
@@ -201,9 +188,7 @@ export default function Navbar() {
                       ? 'bg-amber-50/70 border-amber-200 hover:border-amber-300 text-amber-950'
                       : 'bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-800'
                   }`}
-                  title="Active Profile — Click to switch personas"
                 >
-                  {/* Icon badge */}
                   <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
                     isSuperAdmin
                       ? 'bg-purple-600 text-white'
@@ -220,15 +205,14 @@ export default function Navbar() {
                     )}
                   </div>
 
-                  {/* Name and role */}
                   <div className="flex flex-col text-left">
                     <span className="truncate max-w-[120px] text-xs font-black text-slate-900 leading-tight">
-                      {isSuperAdmin ? 'Founder' : isVendor ? vendorShopName : currentUser.name}
+                      {isSuperAdmin ? 'Founder Admin' : isVendor ? vendorShopName : currentUser.name}
                     </span>
                     <span className={`text-[9px] uppercase font-bold tracking-wider leading-none ${
                       isSuperAdmin ? 'text-purple-600' : isVendor ? 'text-amber-700' : 'text-brand-600'
                     }`}>
-                      {isSuperAdmin ? 'Super Admin' : isVendor ? 'Vendor' : 'Customer'}
+                      {isSuperAdmin ? 'Platform Admin' : isVendor ? 'Partner Studio' : 'Customer'}
                     </span>
                   </div>
 
@@ -239,9 +223,8 @@ export default function Navbar() {
 
                 {/* Dropdown Menu */}
                 {roleMenuOpen && (
-                  <div 
-                    className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-2 z-50 text-xs font-medium animate-in fade-in zoom-in-95 duration-150"
-                  >
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200/90 p-2 z-50 text-xs font-medium animate-in fade-in zoom-in-95 duration-150">
+                    
                     {/* Persona Header Card */}
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 mb-2">
                       <div className="flex items-center gap-2.5">
@@ -255,7 +238,7 @@ export default function Navbar() {
                             {isSuperAdmin ? 'Platform Founder' : isVendor ? vendorShopName : currentUser.name}
                           </span>
                           <span className="text-[10px] text-slate-500 truncate block">
-                            {isSuperAdmin ? 'Super Admin Mode' : isVendor ? `${vendorCenter?.locality || 'Bengaluru'} Bay` : (currentUser.phone || 'Customer Account')}
+                            {currentUser.email || currentUser.phone || 'Authenticated User'}
                           </span>
                         </div>
                       </div>
@@ -268,7 +251,7 @@ export default function Navbar() {
                             onClick={() => setRoleMenuOpen(false)}
                             className="flex items-center justify-between text-xs font-black text-purple-700 hover:text-purple-800"
                           >
-                            <span>Open Admin Dashboard</span>
+                            <span>Open Founder Dashboard</span>
                             <ChevronRight className="w-3.5 h-3.5" />
                           </Link>
                         ) : isVendor ? (
@@ -293,109 +276,38 @@ export default function Navbar() {
                       </div>
                     </div>
 
-                    {/* Persona Switcher Section */}
-                    {/* <div className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                      Switch Active Persona
-                    </div> */}
-
-                    <div className="space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => switchToRole('customer')}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
-                          isCustomer ? 'font-black text-brand-700 bg-brand-50' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <User className="w-3.5 h-3.5 text-brand-600" />
-                          <span>Customer (Rahul)</span>
-                        </span>
-                        {isCustomer && <span className="w-1.5 h-1.5 rounded-full bg-brand-600"></span>}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => switchToRole('vendor')}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
-                          isVendor ? 'font-black text-amber-800 bg-amber-50' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Store className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Vendor (GreenSpark)</span>
-                        </span>
-                        {isVendor && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => switchToRole('superadmin')}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
-                          isSuperAdmin ? 'font-black text-purple-800 bg-purple-50' : 'text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Crown className="w-3.5 h-3.5 text-purple-600" />
-                          <span>Super Admin</span>
-                        </span>
-                        {isSuperAdmin && <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>}
-                      </button>
-                    </div>
-
                     {/* Logout Option */}
-                    <div className="border-t border-slate-100 mt-1.5 pt-1.5">
+                    <div className="pt-1">
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full text-left px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-bold transition"
+                        className="w-full text-left px-2.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-bold transition cursor-pointer"
                       >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
+                        <LogOut className="w-4 h-4" />
+                        <span>Log Out of Session</span>
                       </button>
                     </div>
+
                   </div>
                 )}
               </div>
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
               >
-                <User className="w-3.5 h-3.5 text-amber-400" />
-                <span>Sign In / Select Role</span>
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In / Register</span>
               </Link>
             )}
           </div>
 
-          {/* Mobile Right Controls: Role Chip + 3-Bar Hamburger Button */}
+          {/* Mobile 3-Bar Menu Toggle Button */}
           <div className="flex md:hidden items-center gap-2">
-            {/* Quick compact role badge on mobile */}
-            {currentUser && (
-              <Link
-                to={isSuperAdmin ? "/admin/dashboard" : isVendor ? "/vendor/orders" : "/my-bookings"}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border ${
-                  isSuperAdmin 
-                    ? 'bg-purple-50 text-purple-800 border-purple-200' 
-                    : isVendor 
-                    ? 'bg-amber-50 text-amber-900 border-amber-200' 
-                    : 'bg-brand-50 text-brand-800 border-brand-200'
-                }`}
-              >
-                {isSuperAdmin ? (
-                  <Crown className="w-3 h-3 text-purple-600" />
-                ) : isVendor ? (
-                  <Store className="w-3 h-3 text-amber-600" />
-                ) : (
-                  <User className="w-3 h-3 text-brand-600" />
-                )}
-                <span className="capitalize">{currentUser.role}</span>
-              </Link>
-            )}
-
-            {/* 3-Bar Hamburger Toggle Button */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-hidden transition border border-slate-200/60"
+              className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5 text-slate-900" /> : <Menu className="w-5 h-5 text-slate-900" />}
@@ -405,92 +317,44 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Slide-Down 3-Bar Navigation Drawer */}
+      {/* Mobile Slide-Down Navigation Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white/98 backdrop-blur-lg px-4 pt-3 pb-6 space-y-4 shadow-xl animate-in slide-in-from-top-2 duration-150">
           
-          {/* User Persona Profile Card */}
           {currentUser ? (
-            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 ${
-                    isSuperAdmin ? 'bg-purple-600' : isVendor ? 'bg-slate-900 text-amber-400' : 'bg-brand-600'
-                  }`}>
-                    {isSuperAdmin ? <Crown className="w-4 h-4" /> : isVendor ? <Store className="w-4 h-4 text-amber-400" /> : <User className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-slate-900 block leading-tight">
-                      {isSuperAdmin ? 'Platform Founder' : isVendor ? vendorShopName : currentUser.name}
-                    </span>
-                    <span className="text-[10px] uppercase font-bold text-slate-500">
-                      Active: {currentUser.role}
-                    </span>
-                  </div>
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0 ${
+                  isSuperAdmin ? 'bg-purple-600' : isVendor ? 'bg-slate-900 text-amber-400' : 'bg-brand-600'
+                }`}>
+                  {isSuperAdmin ? <Crown className="w-4 h-4" /> : isVendor ? <Store className="w-4 h-4 text-amber-400" /> : <User className="w-4 h-4" />}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                >
-                  Logout
-                </button>
-              </div>
-
-              {/* 1-Click Role Switcher Buttons for Mobile */}
-              <div>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                  Switch Persona:
-                </span>
-                <div className="grid grid-cols-3 gap-1.5 text-[11px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchToRole('customer');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`py-1.5 px-2 rounded-xl border text-center transition ${
-                      isCustomer ? 'bg-brand-600 text-white border-brand-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    Customer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchToRole('vendor');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`py-1.5 px-2 rounded-xl border text-center transition ${
-                      isVendor ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs' : 'bg-white text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    Vendor
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      switchToRole('superadmin');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`py-1.5 px-2 rounded-xl border text-center transition ${
-                      isSuperAdmin ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    Admin
-                  </button>
+                <div>
+                  <span className="text-xs font-black text-slate-900 block leading-tight">
+                    {isSuperAdmin ? 'Founder Admin' : isVendor ? vendorShopName : currentUser.name}
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500">
+                    {currentUser.role}
+                  </span>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              >
+                Logout
+              </button>
             </div>
           ) : (
             <Link
               to="/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-center gap-2 w-full py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl"
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-brand-600 text-white text-xs font-bold rounded-xl shadow-xs"
             >
-              <User className="w-4 h-4 text-amber-400" />
-              <span>Sign In / Select Persona</span>
+              <User className="w-4 h-4" />
+              <span>Sign In / Register</span>
             </Link>
           )}
 
@@ -505,78 +369,72 @@ export default function Navbar() {
             >
               <span className="flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 text-brand-600" />
-                <span>Explore Centers</span>
+                <span>Explore Studios</span>
               </span>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </Link>
 
-            <Link
-              to="/my-bookings"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
-                location.pathname === '/my-bookings' ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <CalendarCheck className="w-4 h-4 text-brand-600" />
-                <span>My Bookings</span>
-              </span>
-              <div className="flex items-center gap-1.5">
-                {customerActiveCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-brand-100 text-brand-700 font-bold">
-                    {customerActiveCount}
-                  </span>
-                )}
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </div>
-            </Link>
+            {currentUser && (
+              <Link
+                to="/my-bookings"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                  location.pathname === '/my-bookings' ? 'bg-brand-50 text-brand-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <CalendarCheck className="w-4 h-4 text-brand-600" />
+                  <span>My Bookings</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {customerActiveCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-brand-100 text-brand-700 font-bold">
+                      {customerActiveCount}
+                    </span>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </div>
+              </Link>
+            )}
 
-            <Link
-              to="/vendor/orders"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
-                location.pathname.startsWith('/vendor') ? 'bg-amber-50 text-amber-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Store className="w-4 h-4 text-amber-500" />
-                <span>Vendor Orders Terminal</span>
-              </span>
-              <div className="flex items-center gap-1.5">
-                {vendorPendingCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-amber-400 text-slate-950 font-bold">
-                    {vendorPendingCount}
-                  </span>
-                )}
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </div>
-            </Link>
+            {isVendor && (
+              <Link
+                to="/vendor/orders"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+                  location.pathname.startsWith('/vendor') ? 'bg-amber-50 text-amber-900 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Store className="w-4 h-4 text-amber-500" />
+                  <span>Studio Orders Terminal</span>
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {vendorPendingCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-amber-400 text-slate-950 font-bold">
+                      {vendorPendingCount}
+                    </span>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </div>
+              </Link>
+            )}
 
-            <Link
-              to="/admin/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition ${
-                location.pathname.startsWith('/admin') ? 'bg-purple-50 text-purple-800' : 'text-purple-700 hover:bg-purple-50/50'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                <Crown className="w-4 h-4 text-purple-600" />
-                <span>Super Admin Portal</span>
-              </span>
-              <ChevronRight className="w-4 h-4 text-purple-400" />
-            </Link>
-
-            <Link
-              to="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
-            >
-              <span className="flex items-center gap-2.5">
-                <User className="w-4 h-4 text-slate-400" />
-                <span>Login / Switch Account</span>
-              </span>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </Link>
+            {isSuperAdmin && (
+              <Link
+                to="/admin/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-bold transition ${
+                  location.pathname.startsWith('/admin') ? 'bg-purple-50 text-purple-800' : 'text-purple-700 hover:bg-purple-50/50'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Crown className="w-4 h-4 text-purple-600" />
+                  <span>Admin Dashboard</span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-purple-400" />
+              </Link>
+            )}
           </div>
 
         </div>

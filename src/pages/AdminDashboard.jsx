@@ -35,6 +35,7 @@ export default function AdminDashboard() {
     centers, 
     bookings, 
     addCenter, 
+    seedDefaultCenters,
     toggleCenterStatus, 
     currentUser, 
     logoutUser, 
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
   const [directorySearch, setDirectorySearch] = useState('');
   const [directoryLocality, setDirectoryLocality] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   // Form state for Tab 2 (Inline Add Center Form)
   const [formName, setFormName] = useState('');
@@ -244,6 +246,36 @@ export default function AdminDashboard() {
         {/* TAB 1: PLATFORM OVERVIEW & METRICS */}
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-200">
+
+            {/* Clean Slate Quick Seed Banner if 0 centers onboarded */}
+            {totalCentersCount === 0 && (
+              <div className="p-6 bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border-2 border-purple-200 rounded-3xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    <h3 className="text-base font-black text-slate-900">
+                      Clean Database State (0 Studios Onboarded)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
+                    All mock studios and users were purged. You can onboard individual centers using the "Add New Center" tab, or click below to populate verified starter Bengaluru studios (HSR Layout, Indiranagar, Whitefield) into your Supabase database.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSeeding}
+                  onClick={async () => {
+                    setIsSeeding(true);
+                    await seedDefaultCenters();
+                    setIsSeeding(false);
+                  }}
+                  className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-md transition shrink-0 flex items-center gap-2 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>{isSeeding ? 'Seeding Studios...' : '✨ Onboard Starter Studios'}</span>
+                </button>
+              </div>
+            )}
             
             {/* Core Metrics Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

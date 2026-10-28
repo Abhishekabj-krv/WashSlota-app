@@ -1,14 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { ShieldAlert, ArrowLeft, Store, User, Crown } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Store, User } from 'lucide-react';
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { currentUser } = useApp();
   const location = useLocation();
 
-  // If user is not logged in at all, redirect to /login
+  // If unauthenticated user tries to access superadmin area, redirect to hidden founder portal
   if (!currentUser) {
+    if (allowedRoles && allowedRoles.includes('superadmin')) {
+      return <Navigate to="/founder-portal" state={{ from: location }} replace />;
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -35,28 +38,16 @@ export default function ProtectedRoute({ children, allowedRoles }) {
           </p>
 
           <div className="space-y-2.5">
-            <Link
-              to="/login"
-              state={{ tab: allowedRoles.includes('superadmin') ? 'superadmin' : allowedRoles.includes('vendor') ? 'vendor' : 'customer' }}
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition"
-            >
-              {allowedRoles.includes('superadmin') ? (
-                <>
-                  <Crown className="w-4 h-4 text-yellow-300" />
-                  <span>Login with Master Passcode</span>
-                </>
-              ) : allowedRoles.includes('vendor') ? (
-                <>
-                  <Store className="w-4 h-4 text-amber-400" />
-                  <span>Switch to Vendor Login</span>
-                </>
-              ) : (
-                <>
-                  <User className="w-4 h-4 text-cyan-400" />
-                  <span>Switch to Customer Login</span>
-                </>
-              )}
-            </Link>
+            {allowedRoles.includes('vendor') && (
+              <Link
+                to="/login"
+                state={{ tab: 'vendor' }}
+                className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition"
+              >
+                <Store className="w-4 h-4 text-amber-400" />
+                <span>Switch to Partner Studio Login</span>
+              </Link>
+            )}
 
             <Link
               to="/"
